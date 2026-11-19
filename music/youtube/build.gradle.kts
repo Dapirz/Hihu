@@ -16,5 +16,9 @@ kotlin {
 dependencies {
     api(project(":music"))
     implementation(libs.newpipe.extractor)
+    implementation(libs.nanojson)
     implementation(libs.coroutines.core)
 }
+
+
+

@@ -28,4 +28,6 @@ object Icons {
     val add = R.drawable.ic_add
     val dragHandle = R.drawable.ic_drag_handle
     val lyrics = R.drawable.ic_lyrics
+    val explore = R.drawable.ic_explore
+    val home = R.drawable.ic_home
 }

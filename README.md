@@ -18,11 +18,15 @@ Early. What works today:
 - mini player and full-screen player tinted by the cover, with seek, shuffle and repeat
 - favourites, your own playlists, play history, and a queue you can reorder that is still
   there after the app is closed
+- a Home tab with rows made from your own history (keep listening, forgotten favourites,
+  similar to the artist you play most) and YouTube Music's home shelves, no account needed
+- an Explore tab like YouTube Music's: moods and genres, new albums and music videos, and
+  what is trending in your country, from YouTube Charts
 - synced lyrics that follow the song; tap a line to jump to it
 - light or dark theme, and three streaming qualities
 - notification, lockscreen and headset controls
 
-Planned: an Explore tab with what is trending, offline downloads, equalizer and volume
+Planned: offline downloads, equalizer and volume
 normalisation, more themes, importing YouTube playlists by link, and, in a separate build,
 signing in to YouTube Music for your account's playlists and likes.
 

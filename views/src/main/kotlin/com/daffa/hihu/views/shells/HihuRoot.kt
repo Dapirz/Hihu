@@ -19,13 +19,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.daffa.hihu.music.Collection
+import com.daffa.hihu.music.Mood
 import com.daffa.hihu.music.Song
 import com.daffa.hihu.router.Destination
 import com.daffa.hihu.router.Navigator
 import com.daffa.hihu.state.Appearance
 import com.daffa.hihu.state.Collections
+import com.daffa.hihu.state.Explore
 import com.daffa.hihu.state.Favorites
 import com.daffa.hihu.state.History
+import com.daffa.hihu.state.Home
+import com.daffa.hihu.state.Moods
 import com.daffa.hihu.state.Library
 import com.daffa.hihu.state.NowPlaying
 import com.daffa.hihu.state.Playback
@@ -43,7 +48,10 @@ import com.daffa.hihu.views.chrome.NameDialog
 import com.daffa.hihu.views.chrome.PlaylistPicker
 import com.daffa.hihu.views.chrome.SongActions
 import com.daffa.hihu.views.screens.CollectionScreen
+import com.daffa.hihu.views.screens.ExploreScreen
+import com.daffa.hihu.views.screens.HomeScreen
 import com.daffa.hihu.views.screens.LibraryScreen
+import com.daffa.hihu.views.screens.MoodScreen
 import com.daffa.hihu.views.screens.PlayerScreen
 import com.daffa.hihu.views.screens.PlaylistScreen
 import com.daffa.hihu.views.screens.QueueScreen
@@ -62,6 +70,9 @@ class AppState(
     val playback: Playback,
     val radio: Radio,
     val lyrics: SongLyrics,
+    val explore: Explore,
+    val home: Home,
+    val moods: Moods,
     val preferences: Preferences,
 )
 
@@ -97,6 +108,16 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
     val stack by navigator.stack.collectAsStateWithLifecycle()
     val now by app.playback.state.collectAsStateWithLifecycle()
     val openSettings = { navigator.push(Destination.Settings) }
+    val openCollection = { collection: Collection ->
+        app.collections.open(collection)
+        navigator.push(Destination.Collection(collection.id))
+    }
+    val openMood = { mood: Mood ->
+        app.moods.open(mood)
+        navigator.push(Destination.Mood(mood.ref, mood.title))
+    }
+    // A song from a feed plays like YouTube Music: it, then its radio, not the rest of the row.
+    val playFromFeed = { song: Song, _: List<Song> -> app.radio.start(song) }
 
     BackHandler(enabled = stack.size > 1) { navigator.pop() }
 
@@ -118,12 +139,30 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
                     radio = app.radio,
                     now = now,
                     contentPadding = padding,
-                    onOpen = { collection ->
-                        app.collections.open(collection)
-                        navigator.push(Destination.Collection(collection.id))
-                    },
+                    onOpen = openCollection,
                     onSettings = openSettings,
                 )
+                Destination.Home -> HomeScreen(
+                    home = app.home,
+                    contentPadding = padding,
+                    onSongs = playFromFeed,
+                    onOpen = openCollection,
+                    onSettings = openSettings,
+                )
+                Destination.Explore -> ExploreScreen(
+                    explore = app.explore,
+                    playback = app.playback,
+                    now = now,
+                    contentPadding = padding,
+                    onSongs = playFromFeed,
+                    onOpen = openCollection,
+                    onMood = openMood,
+                    onSettings = openSettings,
+                )
+                is Destination.Mood -> when (val open = app.moods[current.ref]) {
+                    null -> LaunchedEffect(current) { navigator.pop() }
+                    else -> MoodScreen(open, padding, onSongs = playFromFeed, onOpen = openCollection, onBack = { navigator.pop() })
+                }
                 Destination.Library -> LibraryScreen(
                     library = app.library,
                     playlists = app.playlists,
@@ -209,7 +248,9 @@ private fun BottomChrome(current: Destination.Tab, now: NowPlaying, navigator: N
         NavigationBar {
             Destination.tabs.forEach { tab ->
                 val (icon, label) = when (tab) {
+                    Destination.Home -> Icons.home to R.string.tab_home
                     Destination.Search -> Icons.search to R.string.tab_search
+                    Destination.Explore -> Icons.explore to R.string.tab_explore
                     Destination.Library -> Icons.library to R.string.tab_library
                 }
                 NavigationBarItem(

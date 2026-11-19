@@ -40,6 +40,12 @@ data class Metrics(
     /** How close to a list edge a dragged row starts it scrolling, and how far per frame. */
     val reorderEdge: Dp = 72.dp,
     val reorderStep: Dp = 12.dp,
+    val rankWidth: Dp = 36.dp,
+    val cardWidth: Dp = 148.dp,
+    val songRowHeight: Dp = 76.dp,
+    val moodWidth: Dp = 168.dp,
+    val moodHeight: Dp = 52.dp,
+    val moodStripe: Dp = 6.dp,
 )
 
 internal val LocalMetrics = staticCompositionLocalOf { Metrics() }

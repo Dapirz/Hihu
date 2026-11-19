@@ -9,13 +9,18 @@ Media3. GPL-3.0-or-later. The module layout and rules follow Sonora's crate layo
 ```
 app/            composition root: Application, MainActivity, PlaybackService (ExoPlayer + MediaSession)
 views/          screens/, shells/ (HihuRoot), chrome/ (mini player), shared/ (Artwork, SongList, Message)
-state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager
+state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager,
+                Home, Explore, Moods, Radio, SongLyrics
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
                 MusicBrowse, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider
 music/lrclib/   lyrics from lrclib.net (title, artist and length only), parsed with NewPipe's nanojson
 music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggestions, album and artist
-                songs, and resolving `hihu-yt://` URIs to audio streams
+                songs, radio mixes, home/explore/mood feeds through a small InnerTube client of its
+                own (InnerTube.kt, YouTubeFeed.kt; no account, anonymous visitor id in memory only),
+                YouTube Charts (asked for directly in YouTubeCharts.kt, since
+                NewPipe 0.27.1 sends the country in upper case and gets a 403), and resolving
+                `hihu-yt://` URIs to audio streams
 router/         Destination (tabs, collections, playlists, queue, settings, player) and the Navigator back stack, pure Kotlin
 storage/        hihu.db on the platform's SQLite: schema and upgrades only; the queries live in state
 ui/             design system: HihuTheme, Metrics, CoverColors, Icons and drawables

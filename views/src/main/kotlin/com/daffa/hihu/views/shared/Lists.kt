@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -92,6 +94,8 @@ fun SongList(
     isPlaying: (Int, Song) -> Boolean = { _, song -> song.id == playingId },
     /** Given, every row gets a drag handle, and a drop calls this once with both positions. */
     onMove: ((from: Int, to: Int) -> Unit)? = null,
+    /** Shows each row's position, 1 first, before its cover, like a chart. */
+    numbered: Boolean = false,
 ) {
     val m = HihuTheme.metrics
     val list = rememberLazyListState()
@@ -125,7 +129,14 @@ fun SongList(
                     .graphicsLayer { translationY = if (dragged) reorder.offset else 0f }
                     .background(if (dragged) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent),
             ) {
-                SongRow(song, playing = isPlaying(index, song), onClick = { onPlay(index) }, menu = rowMenu, handle = handle)
+                SongRow(
+                    song,
+                    playing = isPlaying(index, song),
+                    onClick = { onPlay(index) },
+                    menu = rowMenu,
+                    handle = handle,
+                    rank = if (numbered) index + 1 else null,
+                )
                 if (index < rows.lastIndex && !dragged) RowDivider(m.gapLg + m.rowArtwork + m.gapLg)
             }
         }
@@ -162,6 +173,7 @@ fun SongRow(
     onClick: () -> Unit,
     menu: (@Composable ColumnScope.(dismiss: () -> Unit) -> Unit)? = null,
     handle: (@Composable () -> Unit)? = null,
+    rank: Int? = null,
 ) {
     val m = HihuTheme.metrics
     val (titleColor, subColor) = when (playing) {
@@ -182,6 +194,15 @@ fun SongRow(
             .semantics { if (playing) stateDescription = playingLabel }
             .padding(start = m.gapLg, end = if (menu != null || handle != null) m.gapXs else m.gapLg, top = m.gapMd, bottom = m.gapMd),
     ) {
+        if (rank != null) {
+            Text(
+                rank.toString(),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(m.rankWidth),
+            )
+        }
         Artwork(song.artworkUri, m.rowArtwork, radius = m.radiusMd)
         Column(Modifier.weight(1f).padding(start = m.gapLg)) {
             Text(song.title, color = titleColor, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -220,7 +241,7 @@ fun SongRow(
 fun CollectionRow(collection: Collection, onClick: () -> Unit) {
     val m = HihuTheme.metrics
     val radius = when (collection.kind) {
-        CollectionKind.Album -> m.radiusMd
+        CollectionKind.Album, CollectionKind.Playlist -> m.radiusMd
         CollectionKind.Artist -> m.rowArtwork / 2
     }
     Row(
@@ -245,7 +266,7 @@ fun CollectionRow(collection: Collection, onClick: () -> Unit) {
 fun collectionSubtitle(collection: Collection): String? {
     val count = collection.count
     return when (collection.kind) {
-        CollectionKind.Album -> {
+        CollectionKind.Album, CollectionKind.Playlist -> {
             val songs = count?.let { pluralStringResource(R.plurals.library_count, it.toInt(), it.toInt()) }
             listOfNotNull(collection.subtitle, songs).joinToString(" · ").ifEmpty { null }
         }
@@ -267,7 +288,7 @@ private fun RowDivider(start: androidx.compose.ui.unit.Dp) {
 
 /** Asks for the next page a few rows before the end, while one can be asked for. */
 @Composable
-private fun LoadMoreNearEnd(list: LazyListState, more: ListMore?) {
+internal fun LoadMoreNearEnd(list: LazyListState, more: ListMore?) {
     if (more == null) return
     val onLoad by rememberUpdatedState(more.onLoad)
     val canLoad = more.available && !more.loading && !more.failed
@@ -281,7 +302,7 @@ private fun LoadMoreNearEnd(list: LazyListState, more: ListMore?) {
 }
 
 /** A spinner under the list while the next page loads, or a retry button when it failed. */
-private fun LazyListScope.moreFooter(more: ListMore?) {
+internal fun LazyListScope.moreFooter(more: ListMore?) {
     if (more == null || !(more.loading || more.failed)) return
     item(key = FOOTER_KEY) {
         val m = HihuTheme.metrics

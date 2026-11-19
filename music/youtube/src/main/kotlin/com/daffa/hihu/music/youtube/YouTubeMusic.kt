@@ -1,7 +1,13 @@
 package com.daffa.hihu.music.youtube
 
 import com.daffa.hihu.music.AudioQuality
+import com.daffa.hihu.music.Chart
 import com.daffa.hihu.music.Collection
+import com.daffa.hihu.music.ExploreFeed
+import com.daffa.hihu.music.Mood
+import com.daffa.hihu.music.MusicCharts
+import com.daffa.hihu.music.MusicFeed
+import com.daffa.hihu.music.Shelf
 import com.daffa.hihu.music.CollectionKind
 import com.daffa.hihu.music.MusicBrowse
 import com.daffa.hihu.music.MusicRadio
@@ -49,15 +55,24 @@ class YouTubeMusic(
     locale: Locale = Locale.getDefault(),
     /** Read every time a song is resolved, so a changed setting applies to the next song. */
     private val quality: () -> AudioQuality = { AudioQuality.Normal },
-) : MusicSearch, MusicBrowse, MusicRadio, StreamResolver {
+) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, StreamResolver {
 
     private val service = ServiceList.YouTube
     private val resolved = ConcurrentHashMap<String, Cached>()
 
+    private val feed: YouTubeFeed
+
     init {
         val country = locale.country.ifBlank { FALLBACK_COUNTRY }
         NewPipe.init(HttpDownloader(), Localization(locale.language, country), ContentCountry(country))
+        feed = YouTubeFeed(InnerTube(locale.language.ifBlank { "en" }, country))
     }
+
+    override suspend fun home(): Page<Shelf> = io { feed.home() }.onIo()
+
+    override suspend fun explore(): ExploreFeed = io { feed.explore() }
+
+    override suspend fun mood(mood: Mood): List<Shelf> = io { feed.mood(mood) }
 
     override val scheme: String = SCHEME
 
@@ -79,7 +94,7 @@ class YouTubeMusic(
 
     override suspend fun songs(collection: Collection): Page<Song> = io {
         when (collection.kind) {
-            CollectionKind.Album -> {
+            CollectionKind.Album, CollectionKind.Playlist -> {
                 val info = PlaylistInfo.getInfo(service, collection.id)
                 val first = page(
                     InfoItemsPage(info.relatedItems, info.nextPage, emptyList()),
@@ -104,6 +119,17 @@ class YouTubeMusic(
                     { item -> (item as? StreamInfoItem)?.let(::toSong) },
                 )
             }
+        }
+    }
+
+    override suspend fun trending(): Chart = io {
+        val country = NewPipe.getPreferredContentCountry().countryCode
+        val language = NewPipe.getPreferredLocalization().languageCode
+        // YouTube Charts covers about sixty countries; elsewhere, or if it fails, show the US chart.
+        val songs = runCatching { YouTubeCharts.trending(country, language) }.getOrNull()?.takeIf { it.isNotEmpty() }
+        when (songs) {
+            null -> Chart(FALLBACK_COUNTRY, Page(YouTubeCharts.trending(FALLBACK_COUNTRY, language), null))
+            else -> Chart(country, Page(songs, null))
         }
     }
 
@@ -232,6 +258,9 @@ class YouTubeMusic(
         else -> mapOf("User-Agent" to HttpDownloader.USER_AGENT)
     }
 }
+
+/** Makes every later page of [this] fetch on the IO dispatcher too, not just the first. */
+private fun <T> Page<T>.onIo(): Page<T> = Page(items, next?.let { fetch -> suspend { io { fetch() }.onIo() } }, total)
 
 /** NewPipe blocks on the network, so every call goes through here. */
 private suspend fun <T> io(block: suspend () -> T): T = withContext(Dispatchers.IO) { block() }

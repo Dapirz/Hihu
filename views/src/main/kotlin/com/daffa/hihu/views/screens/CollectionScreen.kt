@@ -89,11 +89,11 @@ private fun Header(open: OpenCollection, songs: List<Song>, total: Long?, playba
     val m = HihuTheme.metrics
     // An album's length is only known once its page is open; an artist's count is subscribers.
     val collection = when (open.collection.kind) {
-        CollectionKind.Album -> open.collection.copy(count = total ?: open.collection.count)
+        CollectionKind.Album, CollectionKind.Playlist -> open.collection.copy(count = total ?: open.collection.count)
         CollectionKind.Artist -> open.collection
     }
     val radius = when (collection.kind) {
-        CollectionKind.Album -> m.radiusLg
+        CollectionKind.Album, CollectionKind.Playlist -> m.radiusLg
         CollectionKind.Artist -> m.collectionArtwork / 2
     }
     Column(
