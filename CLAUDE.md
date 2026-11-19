@@ -7,10 +7,11 @@ Media3. GPL-3.0-or-later. The module layout and rules follow Sonora's crate layo
 ## Module layout
 
 ```
-app/            composition root: Application, MainActivity, PlaybackService (ExoPlayer + MediaSession)
+app/            composition root: Application, MainActivity, PlaybackService (ExoPlayer + MediaSession),
+                Offline (Media3 downloads and the cache the player reads through), HihuDownloadService
 views/          screens/, shells/ (HihuRoot), chrome/ (mini player), shared/ (Artwork, SongList, Message)
 state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager,
-                Home, Explore, Moods, Radio, SongLyrics
+                Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface)
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
                 MusicBrowse, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider
@@ -36,8 +37,8 @@ views → ui, router
 ```
 
 - The database goes through `state.Store`, which runs every query on one background thread.
-  A schema change bumps `HihuDatabase.VERSION` and adds its migration to `onUpgrade`; never
-  edit a table that has shipped. Settings are SharedPreferences in `state.Preferences`.
+  A schema change bumps `HihuDatabase.VERSION` and adds its statements under that version in
+  `MIGRATIONS`; never edit a table that has shipped. Settings are SharedPreferences in `state.Preferences`.
 
 - `state` and `views` see only the interfaces and models in `music`, never a provider module.
   Only `app/` names a concrete provider.
@@ -47,6 +48,9 @@ views → ui, router
 - A provider song whose URI needs work before it plays (`hihu-yt://<id>`) is resolved by a
   `StreamResolver` inside the service's `ResolvingDataSource`, on the loading thread, every time
   it opens. Never resolve stream URLs ahead of time in `state`: they expire.
+- The player reads through `Offline.playerSource`, a read-only cache in front of that resolving
+  source. A downloaded song is stored under its song URI (`hihu-yt://<id>`), so it plays from the
+  cache with no network and no resolving; anything else streams and is not kept.
 - `music/youtube` is the only module that knows NewPipeExtractor. Its R8 rules live in
   `app/proguard-rules.pro`; a release build that cannot search usually means a missing keep rule.
 

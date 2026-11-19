@@ -30,4 +30,6 @@ object Icons {
     val lyrics = R.drawable.ic_lyrics
     val explore = R.drawable.ic_explore
     val home = R.drawable.ic_home
+    val download = R.drawable.ic_download
+    val downloadDone = R.drawable.ic_download_done
 }

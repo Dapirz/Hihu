@@ -4,12 +4,12 @@ import android.app.Application
 import android.content.ComponentName
 import android.telephony.TelephonyManager
 import java.util.Locale
-import com.daffa.hihu.music.StreamResolver
 import com.daffa.hihu.music.local.MediaStoreLibrary
 import com.daffa.hihu.music.youtube.YouTubeMusic
 import com.daffa.hihu.router.Destination
 import com.daffa.hihu.router.Navigator
 import com.daffa.hihu.state.Collections
+import com.daffa.hihu.state.Downloads
 import com.daffa.hihu.state.Explore
 import com.daffa.hihu.state.Favorites
 import com.daffa.hihu.state.History
@@ -38,8 +38,8 @@ class HihuApplication : Application() {
     lateinit var state: AppState
         private set
 
-    /** Every provider whose songs need resolving before they play, for PlaybackService. */
-    lateinit var resolvers: List<StreamResolver>
+    /** Downloads, and the data source the player reads through. One per process. */
+    lateinit var offline: Offline
         private set
 
     override fun onCreate() {
@@ -49,7 +49,7 @@ class HihuApplication : Application() {
         val store = Store(this)
         val history = History(store, scope)
         val favorites = Favorites(store, scope)
-        resolvers = listOf(youtube)
+        offline = Offline(this, listOf(youtube))
         val playback = Playback(
             context = this,
             service = ComponentName(this, PlaybackService::class.java),
@@ -71,6 +71,7 @@ class HihuApplication : Application() {
             explore = Explore(youtube, youtube, scope),
             home = Home(youtube, youtube, history, favorites, scope),
             moods = Moods(youtube, scope),
+            downloads = Downloads(offline, store, scope),
             preferences = preferences,
         )
     }

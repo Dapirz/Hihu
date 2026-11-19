@@ -19,15 +19,16 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
 
     override fun onCreate(db: SQLiteDatabase) {
         SCHEMA.forEach(db::execSQL)
+        MIGRATIONS.values.flatten().forEach(db::execSQL)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Version 1 is the first; later versions add their migrations here, oldest first.
+        for (version in oldVersion + 1..newVersion) MIGRATIONS[version]?.forEach(db::execSQL)
     }
 
     private companion object {
         const val NAME = "hihu.db"
-        const val VERSION = 1
+        const val VERSION = 2
 
         val SCHEMA = listOf(
             """
@@ -83,6 +84,18 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
                 value INTEGER NOT NULL
             )
             """,
+        )
+
+        /** What each version adds to the one before, so an installed app upgrades in order. */
+        val MIGRATIONS = mapOf(
+            2 to listOf(
+                """
+                CREATE TABLE downloads (
+                    song_id TEXT PRIMARY KEY REFERENCES songs(id),
+                    added_at INTEGER NOT NULL
+                )
+                """,
+            ),
         )
     }
 }

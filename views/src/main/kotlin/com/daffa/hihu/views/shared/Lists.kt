@@ -208,6 +208,21 @@ fun SongRow(
             Text(song.title, color = titleColor, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = subColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        when (val badge = LocalSongBadges.current[song.id]) {
+            RowBadge.Downloaded -> Icon(
+                painterResource(Icons.downloadDone),
+                contentDescription = stringResource(R.string.downloaded),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = m.gapSm).size(m.iconSm),
+            )
+            is RowBadge.Downloading -> Text(
+                stringResource(R.string.download_percent, badge.percent),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = m.gapSm),
+            )
+            null -> Unit
+        }
         if (playing) {
             Icon(
                 painterResource(Icons.equalizer),

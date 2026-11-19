@@ -41,6 +41,7 @@ import com.daffa.hihu.ui.Icons
 import com.daffa.hihu.views.R
 import com.daffa.hihu.views.chrome.CommonSongItems
 import com.daffa.hihu.views.chrome.ConfirmDialog
+import com.daffa.hihu.views.chrome.LocalSongActions
 import com.daffa.hihu.views.chrome.MenuItem
 import com.daffa.hihu.views.chrome.NameDialog
 import com.daffa.hihu.views.shared.Artwork
@@ -79,6 +80,13 @@ fun PlaylistScreen(
                     Icon(painterResource(Icons.more), stringResource(R.string.more), Modifier.size(m.iconMd))
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    val actions = LocalSongActions.current
+                    if (songs.orEmpty().any(actions.downloads::supports)) {
+                        MenuItem(R.string.download_all) {
+                            menuOpen = false
+                            actions.download(songs.orEmpty())
+                        }
+                    }
                     MenuItem(R.string.playlist_rename) {
                         menuOpen = false
                         renaming = true

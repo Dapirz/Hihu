@@ -22,11 +22,13 @@ Early. What works today:
   similar to the artist you play most) and YouTube Music's home shelves, no account needed
 - an Explore tab like YouTube Music's: moods and genres, new albums and music videos, and
   what is trending in your country, from YouTube Charts
+- download songs from YouTube Music and play them with no connection; downloads stay inside
+  Hihu and are listed in the library and in settings
 - synced lyrics that follow the song; tap a line to jump to it
 - light or dark theme, and three streaming qualities
 - notification, lockscreen and headset controls
 
-Planned: offline downloads, equalizer and volume
+Planned: equalizer and volume
 normalisation, more themes, importing YouTube playlists by link, and, in a separate build,
 signing in to YouTube Music for your account's playlists and likes.
 

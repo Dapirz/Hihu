@@ -2,11 +2,6 @@ package com.daffa.hihu
 
 import android.app.PendingIntent
 import android.content.Intent
-import android.net.Uri
-import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -35,7 +30,8 @@ class PlaybackService : MediaSessionService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
         val player = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSources()))
+            // Downloaded songs come from the cache with no network; the rest stream.
+            .setMediaSourceFactory(DefaultMediaSourceFactory((application as HihuApplication).offline.playerSource))
             .setAudioAttributes(attributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_LOCAL)
@@ -60,21 +56,6 @@ class PlaybackService : MediaSessionService() {
             .setSessionActivity(open)
             .setCallback(Callback)
             .build()
-    }
-
-    /**
-     * Local files and plain URLs open as they are. A provider URI such as `hihu-yt://<id>` is
-     * resolved to its stream URL and headers on the loading thread, every time it is opened.
-     */
-    @OptIn(UnstableApi::class)
-    private fun dataSources(): DataSource.Factory {
-        val resolvers = (application as HihuApplication).resolvers.associateBy { it.scheme }
-        val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
-        return ResolvingDataSource.Factory(DefaultDataSource.Factory(this, http)) { spec ->
-            val resolver = resolvers[spec.uri.scheme] ?: return@Factory spec
-            val stream = resolver.resolve(spec.uri.toString())
-            spec.withUri(Uri.parse(stream.url)).withAdditionalHeaders(stream.headers)
-        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session

@@ -26,7 +26,17 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.daffa.hihu.music.AudioQuality
+import android.text.format.Formatter
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import com.daffa.hihu.state.Appearance
+import com.daffa.hihu.state.Downloads
+import com.daffa.hihu.views.chrome.ConfirmDialog
 import com.daffa.hihu.state.Preferences
 import com.daffa.hihu.ui.HihuTheme
 import com.daffa.hihu.ui.Icons
@@ -34,7 +44,7 @@ import com.daffa.hihu.views.R
 
 /** Theme and audio quality, each a group of radio buttons. Changes are saved straight away. */
 @Composable
-fun SettingsScreen(preferences: Preferences, onBack: () -> Unit) {
+fun SettingsScreen(preferences: Preferences, downloads: Downloads, onBack: () -> Unit) {
     val m = HihuTheme.metrics
     val appearance by preferences.appearance.collectAsStateWithLifecycle()
     val quality by preferences.quality.collectAsStateWithLifecycle()
@@ -92,7 +102,52 @@ fun SettingsScreen(preferences: Preferences, onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = m.gapXl, vertical = m.gapSm),
             )
+            DownloadsSection(downloads)
         }
+    }
+}
+
+/** How much space downloads take, and a button to remove them all after asking. */
+@Composable
+private fun DownloadsSection(downloads: Downloads) {
+    val m = HihuTheme.metrics
+    val context = LocalContext.current
+    val songs by downloads.songs.collectAsStateWithLifecycle()
+    val bytes by downloads.bytes.collectAsStateWithLifecycle()
+    var confirming by remember { mutableStateOf(false) }
+    LaunchedEffect(songs.size) { downloads.measure() }
+
+    Section(stringResource(R.string.settings_downloads))
+    Text(
+        listOf(
+            pluralStringResource(R.plurals.library_count, songs.size, songs.size),
+            stringResource(R.string.downloads_used, Formatter.formatShortFileSize(context, bytes)),
+        ).joinToString(" · "),
+        style = MaterialTheme.typography.bodyLarge,
+        modifier = Modifier.padding(horizontal = m.gapXl),
+    )
+    Text(
+        stringResource(R.string.downloads_note),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = m.gapXl, vertical = m.gapXs),
+    )
+    TextButton(
+        onClick = { confirming = true },
+        enabled = songs.isNotEmpty(),
+        modifier = Modifier.padding(horizontal = m.gapMd),
+    ) { Text(stringResource(R.string.downloads_clear)) }
+
+    if (confirming) {
+        ConfirmDialog(
+            message = stringResource(R.string.downloads_clear_confirm),
+            confirm = R.string.delete,
+            onConfirm = {
+                confirming = false
+                downloads.removeAll()
+            },
+            onDismiss = { confirming = false },
+        )
     }
 }
 

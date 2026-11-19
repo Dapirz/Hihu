@@ -9,6 +9,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.daffa.hihu.music.Song
+import com.daffa.hihu.state.Downloads
 import com.daffa.hihu.state.Favorites
 import com.daffa.hihu.state.Playback
 import com.daffa.hihu.views.R
@@ -20,7 +21,10 @@ import com.daffa.hihu.views.R
 class SongActions(
     val playback: Playback,
     val favorites: Favorites,
+    val downloads: Downloads,
     val pickPlaylist: (List<Song>) -> Unit,
+    /** Starts downloading, asking for the notification permission first when it is missing. */
+    val download: (List<Song>) -> Unit,
 )
 
 val LocalSongActions = staticCompositionLocalOf<SongActions> { error("SongActions is not provided") }
@@ -45,6 +49,19 @@ fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
     MenuItem(R.string.add_to_playlist) {
         dismiss()
         actions.pickPlaylist(listOf(song))
+    }
+    if (actions.downloads.supports(song)) {
+        val downloaded by actions.downloads.progress.collectAsStateWithLifecycle()
+        when (song.id in downloaded) {
+            true -> MenuItem(R.string.download_remove) {
+                actions.downloads.remove(song)
+                dismiss()
+            }
+            false -> MenuItem(R.string.download) {
+                actions.download(listOf(song))
+                dismiss()
+            }
+        }
     }
 }
 

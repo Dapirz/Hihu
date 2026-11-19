@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.daffa.hihu.music.Song
+import com.daffa.hihu.state.Downloads
 import com.daffa.hihu.state.Favorites
 import com.daffa.hihu.state.History
 import com.daffa.hihu.state.Library
@@ -64,7 +65,7 @@ import com.daffa.hihu.views.shared.ScreenTitle
 import com.daffa.hihu.views.shared.SongList
 
 /** The parts of the library, one chip each. */
-private enum class Section { Playlists, Favorites, History, Device }
+enum class LibrarySection { Playlists, Favorites, Downloads, History, Device }
 
 /**
  * The user's own music: playlists, hearted songs, what was played, and the files on the device.
@@ -75,6 +76,7 @@ fun LibraryScreen(
     library: Library,
     playlists: Playlists,
     favorites: Favorites,
+    downloads: Downloads,
     history: History,
     playback: Playback,
     now: NowPlaying,
@@ -82,41 +84,46 @@ fun LibraryScreen(
     onSettings: () -> Unit,
     onOpenPlaylist: (Long) -> Unit,
     onNewPlaylist: () -> Unit,
+    section: LibrarySection,
+    onSection: (LibrarySection) -> Unit,
 ) {
     val m = HihuTheme.metrics
-    var section by rememberSaveable { mutableStateOf(Section.Playlists) }
     // The sheet runs behind the floating mini player; only the list leaves room for it.
     val padding = PaddingValues(bottom = contentPadding.calculateBottomPadding())
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenTitle(stringResource(R.string.brand), onSettings = onSettings, modifier = Modifier.padding(top = m.gapLg))
-        SectionChips(section, onSelect = { section = it })
+        SectionChips(section, onSelect = onSection)
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
             shape = RoundedCornerShape(topStart = m.radiusSheet, topEnd = m.radiusSheet),
             modifier = Modifier.fillMaxSize(),
         ) {
             when (section) {
-                Section.Playlists -> {
+                LibrarySection.Playlists -> {
                     val all by playlists.all.collectAsStateWithLifecycle()
                     PlaylistList(all, padding, onOpenPlaylist, onNewPlaylist)
                 }
-                Section.Favorites -> {
+                LibrarySection.Favorites -> {
                     val songs by favorites.songs.collectAsStateWithLifecycle()
                     SavedSongs(songs, stringResource(R.string.favorites_empty), playback, now, padding)
                 }
-                Section.History -> {
+                LibrarySection.Downloads -> {
+                    val songs by downloads.songs.collectAsStateWithLifecycle()
+                    SavedSongs(songs, stringResource(R.string.downloads_empty), playback, now, padding)
+                }
+                LibrarySection.History -> {
                     val songs by history.recent.collectAsStateWithLifecycle()
                     SavedSongs(songs, stringResource(R.string.history_empty), playback, now, padding)
                 }
-                Section.Device -> DeviceSongs(library, playback, now, padding)
+                LibrarySection.Device -> DeviceSongs(library, playback, now, padding)
             }
         }
     }
 }
 
 @Composable
-private fun SectionChips(selected: Section, onSelect: (Section) -> Unit) {
+private fun SectionChips(selected: LibrarySection, onSelect: (LibrarySection) -> Unit) {
     val m = HihuTheme.metrics
     Row(
         horizontalArrangement = Arrangement.spacedBy(m.gapSm),
@@ -125,12 +132,13 @@ private fun SectionChips(selected: Section, onSelect: (Section) -> Unit) {
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = m.gapLg, vertical = m.gapMd),
     ) {
-        Section.entries.forEach { section ->
+        LibrarySection.entries.forEach { section ->
             val label = when (section) {
-                Section.Playlists -> R.string.section_playlists
-                Section.Favorites -> R.string.section_favorites
-                Section.History -> R.string.section_history
-                Section.Device -> R.string.section_device
+                LibrarySection.Playlists -> R.string.section_playlists
+                LibrarySection.Favorites -> R.string.section_favorites
+                LibrarySection.Downloads -> R.string.section_downloads
+                LibrarySection.History -> R.string.section_history
+                LibrarySection.Device -> R.string.section_device
             }
             FilterChip(
                 selected = section == selected,

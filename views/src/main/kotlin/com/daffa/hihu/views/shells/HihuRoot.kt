@@ -1,6 +1,14 @@
 package com.daffa.hihu.views.shells
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import com.daffa.hihu.views.shared.LocalSongBadges
+import com.daffa.hihu.views.shared.RowBadge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -14,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -26,6 +35,8 @@ import com.daffa.hihu.router.Destination
 import com.daffa.hihu.router.Navigator
 import com.daffa.hihu.state.Appearance
 import com.daffa.hihu.state.Collections
+import com.daffa.hihu.state.DownloadStatus
+import com.daffa.hihu.state.Downloads
 import com.daffa.hihu.state.Explore
 import com.daffa.hihu.state.Favorites
 import com.daffa.hihu.state.History
@@ -51,6 +62,7 @@ import com.daffa.hihu.views.screens.CollectionScreen
 import com.daffa.hihu.views.screens.ExploreScreen
 import com.daffa.hihu.views.screens.HomeScreen
 import com.daffa.hihu.views.screens.LibraryScreen
+import com.daffa.hihu.views.screens.LibrarySection
 import com.daffa.hihu.views.screens.MoodScreen
 import com.daffa.hihu.views.screens.PlayerScreen
 import com.daffa.hihu.views.screens.PlaylistScreen
@@ -73,6 +85,7 @@ class AppState(
     val explore: Explore,
     val home: Home,
     val moods: Moods,
+    val downloads: Downloads,
     val preferences: Preferences,
 )
 
@@ -92,10 +105,38 @@ fun HihuRoot(app: AppState) {
     // Songs waiting for a playlist: first the picker, then the name dialog for a new one.
     var picking by remember { mutableStateOf<List<Song>?>(null) }
     var naming by remember { mutableStateOf<List<Song>?>(null) }
-    val actions = remember(app) { SongActions(app.playback, app.favorites, pickPlaylist = { picking = it }) }
+    val context = LocalContext.current
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val actions = remember(app) {
+        SongActions(
+            playback = app.playback,
+            favorites = app.favorites,
+            downloads = app.downloads,
+            pickPlaylist = { picking = it },
+            download = { songs ->
+                // The progress notification needs this on Android 13 and newer; downloads run either way.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                app.downloads.download(songs)
+            },
+        )
+    }
+    val progress by app.downloads.progress.collectAsStateWithLifecycle()
+    val badges = remember(progress) {
+        progress.mapNotNull { (id, p) ->
+            when (p.status) {
+                DownloadStatus.Done -> id to RowBadge.Downloaded
+                DownloadStatus.Downloading, DownloadStatus.Queued -> id to RowBadge.Downloading(p.percent.toInt())
+                DownloadStatus.Failed -> null
+            }
+        }.toMap()
+    }
 
     HihuTheme(dark = dark) {
-        CompositionLocalProvider(LocalSongActions provides actions) {
+        CompositionLocalProvider(LocalSongActions provides actions, LocalSongBadges provides badges) {
             Screens(app, onNewPlaylist = { naming = emptyList() })
             Dialogs(app, picking, naming, onPicking = { picking = it }, onNaming = { naming = it })
         }
@@ -121,6 +162,10 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
 
     BackHandler(enabled = stack.size > 1) { navigator.pop() }
 
+    // The library's chosen chip lives here, not in the library screen, so it is still chosen
+    // after the player or a playlist has covered the library and gone again.
+    var librarySection by rememberSaveable { mutableStateOf(LibrarySection.Playlists) }
+
     when (val current = stack.last()) {
         Destination.Player -> Scaffold { _ ->
             PlayerScreen(now, app.playback, app.lyrics, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
@@ -129,7 +174,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
             QueueScreen(app.playback, app.radio, now, onClose = { navigator.pop() })
         }
         Destination.Settings -> Scaffold { _ ->
-            SettingsScreen(app.preferences, onBack = { navigator.pop() })
+            SettingsScreen(app.preferences, app.downloads, onBack = { navigator.pop() })
         }
         else -> Scaffold(bottomBar = { BottomChrome(navigator.tab, now, navigator, app.playback) }) { padding ->
             when (current) {
@@ -167,6 +212,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
                     library = app.library,
                     playlists = app.playlists,
                     favorites = app.favorites,
+                    downloads = app.downloads,
                     history = app.history,
                     playback = app.playback,
                     now = now,
@@ -174,6 +220,8 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
                     onSettings = openSettings,
                     onOpenPlaylist = { navigator.push(Destination.Playlist(it)) },
                     onNewPlaylist = onNewPlaylist,
+                    section = librarySection,
+                    onSection = { librarySection = it },
                 )
                 is Destination.Collection -> when (val open = app.collections[current.id]) {
                     null -> LaunchedEffect(current) { navigator.pop() }

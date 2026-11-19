@@ -46,7 +46,10 @@ import kotlinx.coroutines.withContext
 fun Artwork(uri: String?, size: Dp, modifier: Modifier = Modifier, radius: Dp = HihuTheme.metrics.radiusSm) {
     val context = LocalContext.current
     val px = with(LocalDensity.current) { size.roundToPx() }
+    // produceState keeps its last value when the keys change, so the cover of the previous song
+    // is cleared here first; otherwise a reused row or mini player would keep showing it.
     val bitmap by produceState(initialValue = uri?.let { Covers.cached(it, px) }, uri, px) {
+        value = uri?.let { Covers.cached(it, px) }
         if (uri != null && value == null) value = Covers.load(context, uri, px)?.asImageBitmap()
     }
     Box(
