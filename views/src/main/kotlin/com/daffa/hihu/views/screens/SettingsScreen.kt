@@ -34,6 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.foundation.clickable
+import com.daffa.hihu.state.Account
+import com.daffa.hihu.state.AccountStatus
+import com.daffa.hihu.views.shared.Artwork
 import com.daffa.hihu.state.Appearance
 import com.daffa.hihu.state.Downloads
 import com.daffa.hihu.views.chrome.ConfirmDialog
@@ -62,7 +66,7 @@ import com.daffa.hihu.views.shared.label
 
 /** Theme, colours, audio quality and downloads. Changes are saved straight away. */
 @Composable
-fun SettingsScreen(preferences: Preferences, downloads: Downloads, onBack: () -> Unit) {
+fun SettingsScreen(preferences: Preferences, downloads: Downloads, account: Account?, onSignIn: () -> Unit, onBack: () -> Unit) {
     val m = HihuTheme.metrics
     val appearance by preferences.appearance.collectAsStateWithLifecycle()
     val quality by preferences.quality.collectAsStateWithLifecycle()
@@ -82,6 +86,7 @@ fun SettingsScreen(preferences: Preferences, downloads: Downloads, onBack: () ->
             )
         }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = m.gapXl)) {
+            if (account != null) AccountSection(account, onSignIn)
             Section(stringResource(R.string.settings_theme))
             Choices(
                 options = Appearance.entries,
@@ -177,6 +182,84 @@ private fun DownloadsSection(downloads: Downloads) {
             onDismiss = { confirming = false },
         )
     }
+}
+
+/** The YouTube Music account: who is signed in and a way out, or a way in. */
+@Composable
+private fun AccountSection(account: Account, onSignIn: () -> Unit) {
+    val m = HihuTheme.metrics
+    val status by account.status.collectAsStateWithLifecycle()
+    var confirming by remember { mutableStateOf(false) }
+
+    Section(stringResource(R.string.section_account))
+    when (val current = status) {
+        is AccountStatus.SignedIn -> Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = m.gapXl, vertical = m.gapSm),
+        ) {
+            Artwork(
+                current.profile.photoUri,
+                m.rowArtwork,
+                radius = m.rowArtwork / 2,
+            )
+            Column(Modifier.weight(1f).padding(horizontal = m.gapLg)) {
+                Text(current.profile.name, style = MaterialTheme.typography.bodyLarge)
+                current.profile.handle?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            TextButton(onClick = { confirming = true }) { Text(stringResource(R.string.account_sign_out)) }
+        }
+        AccountStatus.Checking -> Note(stringResource(R.string.account_checking))
+        AccountStatus.Unreachable -> {
+            Note(stringResource(R.string.account_unreachable))
+            TextButton(onClick = account::retryCheck, modifier = Modifier.padding(horizontal = m.gapMd)) {
+                Text(stringResource(R.string.retry))
+            }
+        }
+        AccountStatus.SignedOut, AccountStatus.Expired -> {
+            if (current == AccountStatus.Expired) Note(stringResource(R.string.account_expired))
+            Column(
+                Modifier.fillMaxWidth().clickable(onClick = onSignIn).padding(horizontal = m.gapXl, vertical = m.gapSm),
+            ) {
+                Text(stringResource(R.string.account_sign_in), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.account_sign_in_detail),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                stringResource(R.string.account_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = m.gapXl, vertical = m.gapXs),
+            )
+        }
+    }
+
+    if (confirming) {
+        ConfirmDialog(
+            message = stringResource(R.string.account_sign_out_confirm),
+            confirm = R.string.account_sign_out,
+            onConfirm = {
+                confirming = false
+                account.signOut()
+            },
+            onDismiss = { confirming = false },
+        )
+    }
+}
+
+@Composable
+private fun Note(text: String) {
+    val m = HihuTheme.metrics
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = m.gapXl, vertical = m.gapSm),
+    )
 }
 
 /** A row of colour circles, one per palette, the chosen one ringed and ticked. */

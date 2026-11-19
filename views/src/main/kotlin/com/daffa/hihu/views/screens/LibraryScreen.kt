@@ -46,7 +46,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.daffa.hihu.music.Collection
 import com.daffa.hihu.music.Song
+import com.daffa.hihu.state.Account
 import com.daffa.hihu.state.Downloads
 import com.daffa.hihu.state.Favorites
 import com.daffa.hihu.state.History
@@ -65,7 +67,7 @@ import com.daffa.hihu.views.shared.ScreenTitle
 import com.daffa.hihu.views.shared.SongList
 
 /** The parts of the library, one chip each. */
-enum class LibrarySection { Playlists, Favorites, Downloads, History, Device }
+enum class LibrarySection { Account, Playlists, Favorites, Downloads, History, Device }
 
 /**
  * The user's own music: playlists, hearted songs, what was played, and the files on the device.
@@ -87,6 +89,9 @@ fun LibraryScreen(
     onImportPlaylist: () -> Unit,
     section: LibrarySection,
     onSection: (LibrarySection) -> Unit,
+    account: Account?,
+    onOpenCollection: (Collection) -> Unit,
+    onSignIn: () -> Unit,
 ) {
     val m = HihuTheme.metrics
     // The sheet runs behind the floating mini player; only the list leaves room for it.
@@ -94,13 +99,21 @@ fun LibraryScreen(
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenTitle(stringResource(R.string.brand), onSettings = onSettings, modifier = Modifier.padding(top = m.gapLg))
-        SectionChips(section, onSelect = onSection)
+        val sections = when (account) {
+            null -> LibrarySection.entries - LibrarySection.Account
+            else -> LibrarySection.entries
+        }
+        SectionChips(sections, section, onSelect = onSection)
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
             shape = RoundedCornerShape(topStart = m.radiusSheet, topEnd = m.radiusSheet),
             modifier = Modifier.fillMaxSize(),
         ) {
             when (section) {
+                LibrarySection.Account -> when (account) {
+                    null -> Unit
+                    else -> AccountLibrary(account, padding, onOpenCollection, onSignIn)
+                }
                 LibrarySection.Playlists -> {
                     val all by playlists.all.collectAsStateWithLifecycle()
                     PlaylistList(all, padding, onOpenPlaylist, onNewPlaylist, onImportPlaylist)
@@ -124,7 +137,7 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun SectionChips(selected: LibrarySection, onSelect: (LibrarySection) -> Unit) {
+private fun SectionChips(sections: List<LibrarySection>, selected: LibrarySection, onSelect: (LibrarySection) -> Unit) {
     val m = HihuTheme.metrics
     Row(
         horizontalArrangement = Arrangement.spacedBy(m.gapSm),
@@ -133,8 +146,9 @@ private fun SectionChips(selected: LibrarySection, onSelect: (LibrarySection) ->
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = m.gapLg, vertical = m.gapMd),
     ) {
-        LibrarySection.entries.forEach { section ->
+        sections.forEach { section ->
             val label = when (section) {
+                LibrarySection.Account -> R.string.section_account
                 LibrarySection.Playlists -> R.string.section_playlists
                 LibrarySection.Favorites -> R.string.section_favorites
                 LibrarySection.Downloads -> R.string.section_downloads

@@ -11,14 +11,16 @@ app/            composition root: Application, MainActivity, PlaybackService (Ex
                 Offline (Media3 downloads and the cache the player reads through), HihuDownloadService
 views/          screens/, shells/ (HihuRoot), chrome/ (mini player), shared/ (Artwork, SongList, Message)
 state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager,
-                SearchHistory, PlaylistImport, Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface)
+                SearchHistory, PlaylistImport, Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface),
+                Account (the signed-in session, encrypted with the Android Keystore in SessionStore)
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
-                MusicBrowse, StreamResolver), pure Kotlin
+                MusicBrowse, MusicAccount, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider
 music/lrclib/   lyrics from lrclib.net (title, artist and length only), parsed with NewPipe's nanojson
 music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggestions, album and artist
                 songs, radio mixes, home/explore/mood feeds and plain lyrics through a small InnerTube client of its
-                own (InnerTube.kt, YouTubeFeed.kt; no account, anonymous visitor id in memory only),
+                own (InnerTube.kt, YouTubeFeed.kt; anonymous, with the visitor id in memory only, except a
+                second signed client for the account's library and its playlists),
                 YouTube Charts (asked for directly in YouTubeCharts.kt, since
                 NewPipe 0.27.1 sends the country in upper case and gets a 403), and resolving
                 `hihu-yt://` URIs to audio streams, and opening shared playlist links (PlaylistLinks)
@@ -54,6 +56,14 @@ views → ui, router
 - `music/youtube` is the only module that knows NewPipeExtractor. Its R8 rules live in
   `app/proguard-rules.pro`; a release build that cannot search usually means a missing keep rule.
 
+## Flavours
+
+`standard` (package `com.daffa.hihu`) has no account. `google` ("Hihu G", package
+`com.daffa.hihu.g`) signs in to YouTube Music: the user signs in on Google's own page in a web
+view (`SignInScreen`), and the session cookies go to `state.Account`. The flavour difference is
+one function, `accountFor` in `app/src/<flavour>/kotlin/Flavor.kt`; views show account UI only
+when `AppState.account` is not null. Never log the session cookies or the `Authorization` header.
+
 ## Rules
 
 - **Never drive the player from a view.** Go through `state.Playback`, which talks to the
@@ -79,9 +89,11 @@ views → ui, router
 ## Building
 
 ```sh
-./gradlew assembleDebug
-./gradlew assembleRelease      # R8-minified, signed with the debug key for personal installs
-adb install -r app/build/outputs/apk/release/app-release.apk
+./gradlew assembleStandardDebug
+./gradlew assembleStandardRelease   # R8-minified, signed with the debug key for personal installs
+./gradlew assembleGoogleRelease     # Hihu G, with the YouTube Music account
+adb install -r app/build/outputs/apk/standard/release/app-standard-release.apk
+adb install -r app/build/outputs/apk/google/release/app-google-release.apk
 ```
 
 `local.properties` (ignored) holds `sdk.dir`. compileSdk is 37 because Compose 1.12 needs it;

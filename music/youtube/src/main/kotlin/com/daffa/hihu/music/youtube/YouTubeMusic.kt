@@ -1,5 +1,6 @@
 package com.daffa.hihu.music.youtube
 
+import com.daffa.hihu.music.AccountProfile
 import com.daffa.hihu.music.AudioQuality
 import com.daffa.hihu.music.Chart
 import com.daffa.hihu.music.Collection
@@ -7,6 +8,7 @@ import com.daffa.hihu.music.ContentUnavailable
 import com.daffa.hihu.music.LinkedPlaylist
 import com.daffa.hihu.music.Lyrics
 import com.daffa.hihu.music.LyricsProvider
+import com.daffa.hihu.music.MusicAccount
 import com.daffa.hihu.music.PlaylistLinks
 import com.daffa.hihu.music.ExploreFeed
 import com.daffa.hihu.music.Mood
@@ -62,18 +64,45 @@ class YouTubeMusic(
     locale: Locale = Locale.getDefault(),
     /** Read every time a song is resolved, so a changed setting applies to the next song. */
     private val quality: () -> AudioQuality = { AudioQuality.Normal },
-) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, LyricsProvider, StreamResolver {
+) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, LyricsProvider, MusicAccount, StreamResolver {
 
     private val service = ServiceList.YouTube
     private val resolved = ConcurrentHashMap<String, Cached>()
 
     private val feed: YouTubeFeed
 
+    /** The signed-in session's cookies, or null. Only [account] sends them; everything else stays anonymous. */
+    @Volatile
+    private var session: String? = null
+    private val account: YouTubeFeed
+
     init {
         val country = locale.country.ifBlank { FALLBACK_COUNTRY }
+        val language = locale.language.ifBlank { "en" }
         NewPipe.init(HttpDownloader(), Localization(locale.language, country), ContentCountry(country))
-        feed = YouTubeFeed(InnerTube(locale.language.ifBlank { "en" }, country))
+        feed = YouTubeFeed(InnerTube(language, country))
+        account = YouTubeFeed(InnerTube(language, country) { session })
     }
+
+    override val signInUrl: String = SIGN_IN_URL
+
+    override val sessionUrl: String = MUSIC_ORIGIN
+
+    // YouTube signs the music API with SAPISID; without it the sign-in did not finish.
+    override fun isSignedIn(cookies: String): Boolean =
+        InnerTube.cookie(cookies, "SAPISID") != null || InnerTube.cookie(cookies, "__Secure-3PAPISID") != null
+
+    override fun useSession(cookies: String?) {
+        session = cookies
+    }
+
+    override suspend fun profile(): AccountProfile = io { account.profile() }
+
+    override suspend fun savedPlaylists(): Page<Collection> = io { account.library(LIBRARY_PLAYLISTS) }.onIo()
+
+    override suspend fun savedAlbums(): Page<Collection> = io { account.library(LIBRARY_ALBUMS) }.onIo()
+
+    override suspend fun followedArtists(): Page<Collection> = io { account.library(LIBRARY_ARTISTS) }.onIo()
 
     override suspend fun home(): Page<Shelf> = io { feed.home() }.onIo()
 
@@ -107,6 +136,11 @@ class YouTubeMusic(
     }
 
     override suspend fun songs(collection: Collection): Page<Song> = io {
+        // Signed in, playlists open as the account sees them, so private ones and liked songs work.
+        if (session != null && collection.kind == CollectionKind.Playlist) {
+            val list = collection.id.substringAfter("list=", "").substringBefore('&')
+            if (list.isNotEmpty()) return@io account.playlistSongs(list).onIo()
+        }
         when (collection.kind) {
             CollectionKind.Album, CollectionKind.Playlist -> {
                 val info = PlaylistInfo.getInfo(service, collection.id)
@@ -208,6 +242,11 @@ class YouTubeMusic(
 
     private companion object {
         const val SCHEME = "hihu-yt"
+        const val MUSIC_ORIGIN = "https://music.youtube.com"
+        const val SIGN_IN_URL = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com%2F"
+        const val LIBRARY_PLAYLISTS = "FEmusic_liked_playlists"
+        const val LIBRARY_ALBUMS = "FEmusic_liked_albums"
+        const val LIBRARY_ARTISTS = "FEmusic_library_corpus_artists"
         const val LYRICS_SOURCE = "YouTube Music"
         const val WATCH_URL = "https://www.youtube.com/watch?v="
         const val YOUTUBE_ORIGIN = "https://www.youtube.com"

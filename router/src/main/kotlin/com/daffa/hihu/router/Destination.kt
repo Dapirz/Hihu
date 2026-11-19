@@ -32,6 +32,9 @@ sealed interface Destination {
     /** Theme and audio quality. */
     data object Settings : Destination
 
+    /** The provider's sign-in page, full screen. */
+    data object SignIn : Destination
+
     /** The full-screen now-playing view. */
     data object Player : Destination
 

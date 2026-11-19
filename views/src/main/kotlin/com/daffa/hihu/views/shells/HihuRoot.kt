@@ -72,6 +72,8 @@ import com.daffa.hihu.views.screens.PlaylistScreen
 import com.daffa.hihu.views.screens.QueueScreen
 import com.daffa.hihu.views.screens.SearchScreen
 import com.daffa.hihu.views.screens.SettingsScreen
+import com.daffa.hihu.views.screens.SignInScreen
+import com.daffa.hihu.state.Account
 
 /** Everything the UI reads and drives, built once by the app module. */
 class AppState(
@@ -91,6 +93,8 @@ class AppState(
     val playlistImport: PlaylistImport,
     val downloads: Downloads,
     val preferences: Preferences,
+    /** The YouTube Music account, or null in the build without one. */
+    val account: Account?,
 )
 
 /**
@@ -200,7 +204,19 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
             QueueScreen(app.playback, app.radio, now, onClose = { navigator.pop() })
         }
         Destination.Settings -> Scaffold { _ ->
-            SettingsScreen(app.preferences, app.downloads, onBack = { navigator.pop() })
+            SettingsScreen(
+                app.preferences,
+                app.downloads,
+                app.account,
+                onSignIn = { navigator.push(Destination.SignIn) },
+                onBack = { navigator.pop() },
+            )
+        }
+        Destination.SignIn -> Scaffold { _ ->
+            when (val account = app.account) {
+                null -> LaunchedEffect(Unit) { navigator.pop() }
+                else -> SignInScreen(account, onDone = { navigator.pop() }, onBack = { navigator.pop() })
+            }
         }
         else -> Scaffold(bottomBar = { BottomChrome(navigator.tab, now, navigator, app.playback) }) { padding ->
             when (current) {
@@ -249,6 +265,9 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
                     onImportPlaylist = onImportPlaylist,
                     section = librarySection,
                     onSection = { librarySection = it },
+                    account = app.account,
+                    onOpenCollection = openCollection,
+                    onSignIn = { navigator.push(Destination.SignIn) },
                 )
                 is Destination.Collection -> when (val open = app.collections[current.id]) {
                     null -> LaunchedEffect(current) { navigator.pop() }
@@ -262,7 +281,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
                     contentPadding = padding,
                     onBack = { navigator.pop() },
                 )
-                Destination.Player, Destination.Queue, Destination.Settings -> Unit
+                Destination.Player, Destination.Queue, Destination.Settings, Destination.SignIn -> Unit
             }
         }
     }

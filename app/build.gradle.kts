@@ -15,6 +15,20 @@ android {
         versionName = "0.1.0"
     }
 
+    // Two apps from one codebase: the standard one has no account at all; Hihu G signs in to
+    // YouTube Music. Hihu G has its own package, so both install side by side with their own data.
+    flavorDimensions += "account"
+    productFlavors {
+        create("standard") {
+            dimension = "account"
+            isDefault = true
+        }
+        create("google") {
+            dimension = "account"
+            applicationIdSuffix = ".g"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true

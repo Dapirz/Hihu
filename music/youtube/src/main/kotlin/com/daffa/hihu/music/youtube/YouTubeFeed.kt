@@ -1,11 +1,13 @@
 package com.daffa.hihu.music.youtube
 
+import com.daffa.hihu.music.AccountProfile
 import com.daffa.hihu.music.Collection
 import com.daffa.hihu.music.CollectionKind
 import com.daffa.hihu.music.ExploreFeed
 import com.daffa.hihu.music.Mood
 import com.daffa.hihu.music.Page
 import com.daffa.hihu.music.SearchResult
+import com.daffa.hihu.music.SessionExpired
 import com.daffa.hihu.music.Shelf
 import com.daffa.hihu.music.Song
 import com.grack.nanojson.JsonArray
@@ -45,6 +47,49 @@ internal class YouTubeFeed(private val api: InnerTube) {
             ?: return null
         return shelf.getObject("description").getArray("runs").objects()
             .joinToString("") { it.getString("text", "") }.takeIf { it.isNotBlank() }
+    }
+
+    /** The signed-in account from the account menu; [api] must carry a session. */
+    fun profile(): AccountProfile {
+        val header = findObject(api.accountMenu(), "activeAccountHeaderRenderer")
+            ?: throw SessionExpired("youtube: the account menu names no account")
+        val photo = header.getObject("accountPhoto").getArray("thumbnails").objects()
+            .maxByOrNull { it.getInt("width", 0) }?.getString("url", null)
+        return AccountProfile(
+            name = header.getObject("accountName").runsText() ?: throw SessionExpired("youtube: the account has no name"),
+            handle = header.getObject("channelHandle").runsText(),
+            photoUri = photo,
+        )
+    }
+
+    /** A grid or list of the account's library, such as its playlists or albums, as collections. */
+    fun library(browseId: String): Page<Collection> = collections(api.browse(browseId = browseId))
+
+    private fun collections(json: JsonObject): Page<Collection> {
+        val entries = findAll(json, CARD).map { JsonObject(mapOf(CARD to it)) } +
+            findAll(json, ROW).map { JsonObject(mapOf(ROW to it)) }
+        val items = entries.mapNotNull { (item(it) as? SearchResult.Group)?.collection }
+        return Page(items, nextPage(json, ::collections))
+    }
+
+    /** The songs of playlist [id] as the account sees it, so private playlists and liked songs open too. */
+    fun playlistSongs(id: String): Page<Song> = songs(api.browse(browseId = "VL$id"))
+
+    private fun songs(json: JsonObject): Page<Song> {
+        val items = findAll(json, ROW).mapNotNull { (listSong(it) as? SearchResult.Track)?.song }
+        return Page(items, nextPage(json, ::songs))
+    }
+
+    /**
+     * How to fetch the page after [json], or null on the last one. YouTube sends the token in a
+     * `continuationCommand` (asked for in the body) or, on older pages, in `nextContinuationData`.
+     */
+    private fun <T> nextPage(json: JsonObject, read: (JsonObject) -> Page<T>): (suspend () -> Page<T>)? {
+        findObject(json, "continuationItemRenderer")?.let { findString(it, "token") }?.let { token ->
+            return suspend { read(api.browseContinuation(token)) }
+        }
+        val token = findObject(json, "nextContinuationData")?.getString("continuation", null) ?: return null
+        return suspend { read(api.browse(continuation = token)) }
     }
 
     /** One page of home and, when there is more, how to fetch the next one. */
@@ -124,21 +169,34 @@ internal class YouTubeFeed(private val api: InnerTube) {
         return SearchResult.Track(song(videoId, title, artists(card.getObject("subtitle")), artwork))
     }
 
+    /** A list row: a song, or an artist or playlist that the row opens. */
     private fun listSong(row: JsonObject): SearchResult? {
         val columns = row.getArray("flexColumns").objects()
             .map { it.getObject("musicResponsiveListItemFlexColumnRenderer").getObject("text") }
         val title = columns.getOrNull(0)?.runsText() ?: return null
+        val artwork = thumbnail(row.getObject("thumbnail"))
+        val browse = row.getObject("navigationEndpoint").getObject("browseEndpoint")
+        val opens = browse.getString("browseId", null)
+        val subtitle = columns.getOrNull(1)?.runsText()
+        val group = when (pageType(browse)) {
+            ARTIST -> opens?.let { Collection(CHANNEL_URL + it, CollectionKind.Artist, title, subtitle, artwork) }
+            PLAYLIST -> opens?.let { Collection(PLAYLIST_URL + it.removePrefix("VL"), CollectionKind.Playlist, title, subtitle, artwork) }
+            else -> null
+        }
+        if (group != null) return SearchResult.Group(group)
         val videoId = row.getObject("playlistItemData").getString("videoId", null) ?: findString(row, "videoId") ?: return null
         val artist = columns.getOrNull(1)?.let(::artists)
-        return SearchResult.Track(song(videoId, title, artist, thumbnail(row.getObject("thumbnail"))))
+        val length = row.getArray("fixedColumns").objects().firstOrNull()
+            ?.getObject("musicResponsiveListItemFixedColumnRenderer")?.getObject("text")?.runsText()
+        return SearchResult.Track(song(videoId, title, artist, artwork, length?.let(::clockMs) ?: 0))
     }
 
-    private fun song(videoId: String, title: String, artist: String?, artwork: String?) = Song(
+    private fun song(videoId: String, title: String, artist: String?, artwork: String?, durationMs: Long = 0) = Song(
         id = "yt:$videoId",
         title = title,
         artist = artist,
         album = null,
-        durationMs = 0,
+        durationMs = durationMs,
         uri = "hihu-yt://$videoId",
         artworkUri = artwork,
     )
@@ -165,6 +223,8 @@ internal class YouTubeFeed(private val api: InnerTube) {
     private companion object {
         const val HOME = "FEmusic_home"
         const val LYRICS_PREFIX = "MPLY"
+        const val ROW = "musicResponsiveListItemRenderer"
+        const val CARD = "musicTwoRowItemRenderer"
         const val EXPLORE = "FEmusic_explore"
         const val MOOD_PAGE = "FEmusic_moods_and_genres_category"
         const val ALBUM = "MUSIC_PAGE_TYPE_ALBUM"
@@ -183,6 +243,27 @@ private fun JsonArray.objects(): List<JsonObject> = filterIsInstance<JsonObject>
 /** The text of a `runs` holder, all runs joined, or null when empty. */
 private fun JsonObject.runsText(): String? =
     getArray("runs").objects().joinToString("") { it.getString("text", "").orEmpty() }.trim().ifEmpty { null }
+
+/** Every object under [key] anywhere inside [json], in order, without looking inside the ones found. */
+private fun findAll(json: Any?, key: String): List<JsonObject> = when (json) {
+    is JsonObject -> (json[key] as? JsonObject)?.let(::listOf) ?: json.values.flatMap { findAll(it, key) }
+    is JsonArray -> json.flatMap { findAll(it, key) }
+    else -> emptyList()
+}
+
+/** The first object under [key] anywhere inside [json], depth first. */
+private fun findObject(json: Any?, key: String): JsonObject? = when (json) {
+    is JsonObject -> (json[key] as? JsonObject) ?: json.values.firstNotNullOfOrNull { findObject(it, key) }
+    is JsonArray -> json.firstNotNullOfOrNull { findObject(it, key) }
+    else -> null
+}
+
+/** A length shown as `m:ss` or `h:mm:ss`, in milliseconds, or null when it is not one. */
+private fun clockMs(text: String): Long? {
+    val parts = text.split(':').map { it.toLongOrNull() ?: return null }
+    if (parts.size !in 2..3) return null
+    return parts.fold(0L) { total, part -> total * 60 + part } * 1000
+}
 
 /** The first string value under [key] anywhere inside [json], depth first. */
 private fun findString(json: Any?, key: String): String? = when (json) {

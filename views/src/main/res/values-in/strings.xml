@@ -149,4 +149,19 @@
     <plurals name="library_count">
         <item quantity="other">%d lagu</item>
     </plurals>
+    <string name="section_account">YouTube Music</string>
+    <string name="account_sign_in">Masuk ke YouTube Music</string>
+    <string name="account_sign_in_detail">Playlist, album dan artismu, lewat halaman masuk Google sendiri</string>
+    <string name="account_note">Hihu masuk dengan cara yang sama seperti situs YouTube Music. YouTube tidak mengizinkan ini untuk aplikasi lain, jadi akun bisa saja dibatasi. Sesi masuk hanya disimpan di ponsel ini.</string>
+    <string name="account_checking">Memeriksa akunmu…</string>
+    <string name="account_expired">Kamu sudah keluar. Masuk lagi untuk melihat koleksimu.</string>
+    <string name="account_unreachable">Tidak bisa menghubungi YouTube Music untuk memeriksa akunmu.</string>
+    <string name="account_sign_out">Keluar</string>
+    <string name="account_sign_out_confirm">Keluar dari YouTube Music di ponsel ini?</string>
+    <string name="account_signed_out">Masuk untuk melihat playlist, album dan artismu dari YouTube Music.</string>
+    <string name="sign_in_title">Masuk</string>
+    <string name="library_albums">Album</string>
+    <string name="library_artists">Artis</string>
+    <string name="account_library_failed">Tidak bisa memuat bagian koleksi ini.</string>
+    <string name="account_library_empty">Belum ada apa-apa di sini.</string>
 </resources>

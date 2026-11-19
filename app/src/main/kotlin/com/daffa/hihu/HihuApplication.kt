@@ -79,6 +79,7 @@ class HihuApplication : Application() {
             playlistImport = PlaylistImport(youtube, playlists, scope),
             downloads = Downloads(offline, store, scope),
             preferences = preferences,
+            account = accountFor(youtube, this, scope),
         )
     }
 

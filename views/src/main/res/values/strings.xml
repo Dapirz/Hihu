@@ -154,4 +154,19 @@
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>
     </plurals>
+    <string name="section_account">YouTube Music</string>
+    <string name="account_sign_in">Sign in to YouTube Music</string>
+    <string name="account_sign_in_detail">Your playlists, albums and artists, from Google\'s own sign-in page</string>
+    <string name="account_note">Hihu signs in the way YouTube Music\'s website does. YouTube does not allow this for other apps, so it could limit the account. The session stays on this phone.</string>
+    <string name="account_checking">Checking your account…</string>
+    <string name="account_expired">You were signed out. Sign in again to see your library.</string>
+    <string name="account_unreachable">Cannot reach YouTube Music to check your account.</string>
+    <string name="account_sign_out">Sign out</string>
+    <string name="account_sign_out_confirm">Sign out of YouTube Music on this phone?</string>
+    <string name="account_signed_out">Sign in to see your playlists, albums and artists from YouTube Music.</string>
+    <string name="sign_in_title">Sign in</string>
+    <string name="library_albums">Albums</string>
+    <string name="library_artists">Artists</string>
+    <string name="account_library_failed">Cannot load this part of your library.</string>
+    <string name="account_library_empty">Nothing here yet.</string>
 </resources>
