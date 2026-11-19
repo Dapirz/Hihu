@@ -277,6 +277,11 @@ class YouTubeMusic(
     }
 
     /** The headers a stream URL expects, which depend on the YouTube client it was issued to. */
+    override fun invalidate(uri: String) {
+        val prefix = uri.removePrefix("$SCHEME://") + "@"
+        resolved.keys.removeIf { it.startsWith(prefix) }
+    }
+
     private fun headersFor(url: String): Map<String, String> = when {
         YoutubeParsingHelper.isVisionOsStreamingUrl(url) ->
             mapOf("User-Agent" to YoutubeParsingHelper.getVisionOsUserAgent(null))

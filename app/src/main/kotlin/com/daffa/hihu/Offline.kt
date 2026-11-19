@@ -48,11 +48,13 @@ class Offline(private val context: Context, resolvers: List<StreamResolver>) : D
     private val upstream: DataSource.Factory = run {
         val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
         // YouTube streams are read in chunks; YouTube slows a request for the whole file.
-        ResolvingDataSource.Factory(DefaultDataSource.Factory(context, ChunkedStreamDataSource.Factory(http))) { spec ->
+        val resolving = ResolvingDataSource.Factory(DefaultDataSource.Factory(context, ChunkedStreamDataSource.Factory(http))) { spec ->
             val resolver = schemes[spec.uri.scheme] ?: return@Factory spec
             val stream = resolver.resolve(spec.uri.toString())
             spec.withUri(Uri.parse(stream.url)).withAdditionalHeaders(stream.headers)
         }
+        // A URL YouTube stops accepting mid-song is fetched again on the player's retry.
+        RefreshingDataSource.Factory(resolving) { uri -> schemes[uri.scheme]?.invalidate(uri.toString()) }
     }
 
     /**

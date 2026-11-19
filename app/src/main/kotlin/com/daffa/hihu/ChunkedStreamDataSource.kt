@@ -1,6 +1,7 @@
 package com.daffa.hihu
 
 import android.net.Uri
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
@@ -99,10 +100,23 @@ class ChunkedStreamDataSource private constructor(private val http: HttpDataSour
             .setHttpMethod(DataSpec.HTTP_METHOD_POST)
             .setHttpBody(POST_BODY)
             .build()
-        current = http.createDataSource().also { it.open(chunk) }
+        val source = http.createDataSource()
+        try {
+            source.open(chunk)
+        } catch (e: HttpDataSource.InvalidResponseCodeException) {
+            // Only the range and the client name: the URL itself carries the phone's IP address.
+            Log.w(
+                TAG,
+                "stream: chunk $position-$last of $end (request $requests, client ${base.uri.getQueryParameter("c")}) " +
+                    "refused with ${e.responseCode}",
+            )
+            throw e
+        }
+        current = source
     }
 
     private companion object {
+        const val TAG = "Hihu"
         const val CHUNK_BYTES = 1L shl 20
         val POST_BODY = byteArrayOf(0x78, 0)
 
