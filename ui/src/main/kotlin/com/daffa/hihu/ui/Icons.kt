@@ -27,4 +27,5 @@ object Icons {
     val queue = R.drawable.ic_queue
     val add = R.drawable.ic_add
     val dragHandle = R.drawable.ic_drag_handle
+    val lyrics = R.drawable.ic_lyrics
 }

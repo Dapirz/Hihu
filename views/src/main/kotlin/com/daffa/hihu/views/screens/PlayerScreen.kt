@@ -41,6 +41,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.daffa.hihu.state.NowPlaying
 import com.daffa.hihu.state.Playback
 import com.daffa.hihu.state.Repeat
+import com.daffa.hihu.state.SongLyrics
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.daffa.hihu.ui.CoverColors
 import com.daffa.hihu.ui.DarkSystemBars
 import com.daffa.hihu.ui.HihuTheme
@@ -57,8 +59,15 @@ import com.daffa.hihu.views.shared.rememberCoverColors
  * colour; below the cover sit the titles, the seek bar and the transport row.
  */
 @Composable
-fun PlayerScreen(now: NowPlaying, playback: Playback, onClose: () -> Unit, onQueue: () -> Unit) {
+fun PlayerScreen(
+    now: NowPlaying,
+    playback: Playback,
+    lyrics: SongLyrics,
+    onClose: () -> Unit,
+    onQueue: () -> Unit,
+) {
     val m = HihuTheme.metrics
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
     val colors = rememberCoverColors(now.artworkUri)
     DarkSystemBars()
     val background = Brush.verticalGradient(listOf(colors.base, colors.base, colors.tint))
@@ -78,6 +87,18 @@ fun PlayerScreen(now: NowPlaying, playback: Playback, onClose: () -> Unit, onQue
                 }
                 Box(Modifier.weight(1f))
                 FavoriteButton(now)
+                val lyricsState = stringResource(if (showLyrics) R.string.state_on else R.string.state_off)
+                IconButton(
+                    onClick = { showLyrics = !showLyrics },
+                    modifier = Modifier.semantics { stateDescription = lyricsState },
+                ) {
+                    Icon(
+                        painterResource(Icons.lyrics),
+                        stringResource(R.string.lyrics),
+                        tint = if (showLyrics) colors.content else colors.contentMuted,
+                        modifier = Modifier.size(m.iconMd),
+                    )
+                }
                 IconButton(onClick = onQueue) {
                     Icon(painterResource(Icons.queue), stringResource(R.string.queue), Modifier.size(m.iconMd))
                 }
@@ -86,8 +107,13 @@ fun PlayerScreen(now: NowPlaying, playback: Playback, onClose: () -> Unit, onQue
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentAlignment = Alignment.Center,
             ) {
-                val side = minOf(maxWidth, maxHeight, m.playerArtworkMax)
-                Artwork(now.artworkUri, side, radius = m.radiusLg)
+                when (showLyrics) {
+                    true -> LyricsPane(lyrics, now, colors, onSeek = playback::seekTo)
+                    false -> {
+                        val side = minOf(maxWidth, maxHeight, m.playerArtworkMax)
+                        Artwork(now.artworkUri, side, radius = m.radiusLg)
+                    }
+                }
             }
             Text(
                 now.title,

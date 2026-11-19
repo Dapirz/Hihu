@@ -13,6 +13,7 @@ state/          app-wide state holders and all async work: Playback, Library, Se
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
                 MusicBrowse, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider
+music/lrclib/   lyrics from lrclib.net (title, artist and length only), parsed with NewPipe's nanojson
 music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggestions, album and artist
                 songs, and resolving `hihu-yt://` URIs to audio streams
 router/         Destination (tabs, collections, playlists, queue, settings, player) and the Navigator back stack, pure Kotlin
@@ -24,7 +25,7 @@ Dependency direction is strict. Do not create a back edge:
 
 ```
 app → views → state → music
-app → music:local, music:youtube → music
+app → music:local, music:youtube, music:lrclib → music
 state → storage
 views → ui, router
 ```

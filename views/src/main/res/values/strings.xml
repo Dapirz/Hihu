@@ -71,6 +71,10 @@
     <string name="move_up">Move up</string>
     <string name="move_down">Move down</string>
     <string name="radio_from">Radio from %1$s</string>
+    <string name="lyrics">Lyrics</string>
+    <string name="lyrics_missing">No lyrics found for this song.</string>
+    <string name="lyrics_failed">Couldn\'t load the lyrics.</string>
+    <string name="lyrics_source">Lyrics from %1$s</string>
     <string name="queue">Queue</string>
     <string name="queue_empty">Nothing is queued.</string>
     <string name="section_playlists">Playlists</string>

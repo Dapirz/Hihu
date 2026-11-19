@@ -33,6 +33,7 @@ import com.daffa.hihu.state.Playlists
 import com.daffa.hihu.state.Preferences
 import com.daffa.hihu.state.Radio
 import com.daffa.hihu.state.Search
+import com.daffa.hihu.state.SongLyrics
 import com.daffa.hihu.ui.HihuTheme
 import com.daffa.hihu.ui.Icons
 import com.daffa.hihu.views.R
@@ -60,6 +61,7 @@ class AppState(
     val history: History,
     val playback: Playback,
     val radio: Radio,
+    val lyrics: SongLyrics,
     val preferences: Preferences,
 )
 
@@ -100,7 +102,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
 
     when (val current = stack.last()) {
         Destination.Player -> Scaffold { _ ->
-            PlayerScreen(now, app.playback, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
+            PlayerScreen(now, app.playback, app.lyrics, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
         }
         Destination.Queue -> Scaffold { _ ->
             QueueScreen(app.playback, app.radio, now, onClose = { navigator.pop() })

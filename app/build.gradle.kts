@@ -43,6 +43,7 @@ dependencies {
     implementation(project(":views"))
     implementation(project(":music:local"))
     implementation(project(":music:youtube"))
+    implementation(project(":music:lrclib"))
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.media3.datasource)

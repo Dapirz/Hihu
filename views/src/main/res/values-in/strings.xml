@@ -69,6 +69,10 @@
     <string name="move_up">Pindah ke atas</string>
     <string name="move_down">Pindah ke bawah</string>
     <string name="radio_from">Radio dari %1$s</string>
+    <string name="lyrics">Lirik</string>
+    <string name="lyrics_missing">Lirik lagu ini belum ketemu.</string>
+    <string name="lyrics_failed">Gagal memuat lirik.</string>
+    <string name="lyrics_source">Lirik dari %1$s</string>
     <string name="queue">Antrean</string>
     <string name="queue_empty">Antrean kosong.</string>
     <string name="section_playlists">Playlist</string>

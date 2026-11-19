@@ -17,6 +17,8 @@ import com.daffa.hihu.state.Preferences
 import com.daffa.hihu.state.Radio
 import com.daffa.hihu.state.SavedQueue
 import com.daffa.hihu.state.Search
+import com.daffa.hihu.state.SongLyrics
+import com.daffa.hihu.music.lrclib.Lrclib
 import com.daffa.hihu.state.Store
 import com.daffa.hihu.views.shells.AppState
 import kotlinx.coroutines.MainScope
@@ -59,6 +61,7 @@ class HihuApplication : Application() {
             history = history,
             playback = playback,
             radio = Radio(youtube, playback, scope),
+            lyrics = SongLyrics(Lrclib(), playback, scope),
             preferences = preferences,
         )
     }

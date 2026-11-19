@@ -18,11 +18,19 @@ Early. What works today:
 - mini player and full-screen player tinted by the cover, with seek, shuffle and repeat
 - favourites, your own playlists, play history, and a queue you can reorder that is still
   there after the app is closed
+- synced lyrics that follow the song; tap a line to jump to it
 - light or dark theme, and three streaming qualities
 - notification, lockscreen and headset controls
 
-Planned: signing in to YouTube Music (your account's playlists and likes), home
-recommendations, synced lyrics, offline downloads, equalizer and volume normalisation.
+Planned: an Explore tab with what is trending, offline downloads, equalizer and volume
+normalisation, more themes, importing YouTube playlists by link, and, in a separate build,
+signing in to YouTube Music for your account's playlists and likes.
+
+## Privacy
+
+Hihu has no account, analytics or crash reporting. Searching and playing talk to YouTube.
+Opening the lyrics of a song sends its title, artist and length to lrclib.net, and nothing
+else; lyrics are only looked up while they are on screen.
 
 ## Build
 
@@ -38,6 +46,8 @@ The module layout and its rules follow [Sonora](https://github.com/sonorahq/sono
 
 YouTube Music search and streams come from
 [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) (GPL-3.0-or-later).
+
+Synced lyrics come from [LRCLIB](https://lrclib.net).
 
 Icons are [Material Icons](https://github.com/google/material-design-icons) (Apache 2.0).
 
