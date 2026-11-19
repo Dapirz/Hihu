@@ -84,6 +84,7 @@ fun LibraryScreen(
     onSettings: () -> Unit,
     onOpenPlaylist: (Long) -> Unit,
     onNewPlaylist: () -> Unit,
+    onImportPlaylist: () -> Unit,
     section: LibrarySection,
     onSection: (LibrarySection) -> Unit,
 ) {
@@ -102,7 +103,7 @@ fun LibraryScreen(
             when (section) {
                 LibrarySection.Playlists -> {
                     val all by playlists.all.collectAsStateWithLifecycle()
-                    PlaylistList(all, padding, onOpenPlaylist, onNewPlaylist)
+                    PlaylistList(all, padding, onOpenPlaylist, onNewPlaylist, onImportPlaylist)
                 }
                 LibrarySection.Favorites -> {
                     val songs by favorites.songs.collectAsStateWithLifecycle()
@@ -150,27 +151,19 @@ private fun SectionChips(selected: LibrarySection, onSelect: (LibrarySection) ->
     }
 }
 
-/** A "New playlist" row, then every playlist with its cover and song count. */
+/** "New playlist" and "Import from YouTube" rows, then every playlist with its cover and song count. */
 @Composable
 private fun PlaylistList(
     playlists: List<PlaylistSummary>,
     padding: PaddingValues,
     onOpen: (Long) -> Unit,
     onNew: () -> Unit,
+    onImport: () -> Unit,
 ) {
     val m = HihuTheme.metrics
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-        item(key = "new") {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onNew).padding(horizontal = m.gapLg, vertical = m.gapMd),
-            ) {
-                Box(Modifier.size(m.rowArtwork), contentAlignment = Alignment.Center) {
-                    Icon(painterResource(Icons.add), contentDescription = null, Modifier.size(m.iconLg))
-                }
-                Text(stringResource(R.string.playlist_new), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = m.gapLg))
-            }
-        }
+        item(key = "new") { ActionRow(Icons.add, R.string.playlist_new, onNew) }
+        item(key = "import") { ActionRow(Icons.link, R.string.import_title, onImport) }
         if (playlists.isEmpty()) {
             item(key = "empty") {
                 Text(
@@ -306,4 +299,19 @@ private fun SheetHeader(label: String?, count: Int, onShuffle: () -> Unit, onPla
 private fun audioPermission(): String = when (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
     true -> Manifest.permission.READ_MEDIA_AUDIO
     false -> Manifest.permission.READ_EXTERNAL_STORAGE
+}
+
+/** A row that starts something, with an icon where a cover would be. */
+@Composable
+private fun ActionRow(icon: Int, label: Int, onClick: () -> Unit) {
+    val m = HihuTheme.metrics
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = m.gapLg, vertical = m.gapMd),
+    ) {
+        Box(Modifier.size(m.rowArtwork), contentAlignment = Alignment.Center) {
+            Icon(painterResource(icon), contentDescription = null, Modifier.size(m.iconLg))
+        }
+        Text(stringResource(label), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = m.gapLg))
+    }
 }

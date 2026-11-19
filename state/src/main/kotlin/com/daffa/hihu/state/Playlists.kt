@@ -37,19 +37,22 @@ class Playlists(private val store: Store, private val scope: CoroutineScope) {
 
     /** Makes a playlist called [name] holding [songs], and passes its id to [created]. */
     fun create(name: String, songs: List<Song> = emptyList(), created: (Long) -> Unit = {}) {
-        scope.launch {
-            val id = store.transaction { db ->
-                val id = db.insert("playlists", null, ContentValues().apply {
-                    put("name", name.trim())
-                    put("created_at", System.currentTimeMillis())
-                })
-                db.append(id, songs)
-                id
-            }
-            reload(id)
-            reloadAll()
-            created(id)
+        scope.launch { created(createNow(name, songs)) }
+    }
+
+    /** Like [create], for callers already in a coroutine: returns the new playlist's id once saved. */
+    suspend fun createNow(name: String, songs: List<Song>): Long {
+        val id = store.transaction { db ->
+            val id = db.insert("playlists", null, ContentValues().apply {
+                put("name", name.trim())
+                put("created_at", System.currentTimeMillis())
+            })
+            db.append(id, songs)
+            id
         }
+        reload(id)
+        reloadAll()
+        return id
     }
 
     fun rename(id: Long, name: String) = change(id) { db ->

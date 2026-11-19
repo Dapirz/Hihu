@@ -3,6 +3,9 @@ package com.daffa.hihu.music.youtube
 import com.daffa.hihu.music.AudioQuality
 import com.daffa.hihu.music.Chart
 import com.daffa.hihu.music.Collection
+import com.daffa.hihu.music.ContentUnavailable
+import com.daffa.hihu.music.LinkedPlaylist
+import com.daffa.hihu.music.PlaylistLinks
 import com.daffa.hihu.music.ExploreFeed
 import com.daffa.hihu.music.Mood
 import com.daffa.hihu.music.MusicCharts
@@ -35,6 +38,8 @@ import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubePlaylistLinkHandlerFactory
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeStreamLinkHandlerFactory
 import org.schabi.newpipe.extractor.stream.AudioStream
@@ -55,7 +60,7 @@ class YouTubeMusic(
     locale: Locale = Locale.getDefault(),
     /** Read every time a song is resolved, so a changed setting applies to the next song. */
     private val quality: () -> AudioQuality = { AudioQuality.Normal },
-) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, StreamResolver {
+) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, StreamResolver {
 
     private val service = ServiceList.YouTube
     private val resolved = ConcurrentHashMap<String, Cached>()
@@ -120,6 +125,31 @@ class YouTubeMusic(
                 )
             }
         }
+    }
+
+    override suspend fun playlist(link: String): LinkedPlaylist? = io {
+        val handlers = YoutubePlaylistLinkHandlerFactory.getInstance()
+        // Links from the share sheet carry tracking (`si=`) and may point at a video in the list.
+        val url = runCatching { handlers.fromUrl(link).url }.getOrNull() ?: return@io null
+        val info = try {
+            PlaylistInfo.getInfo(service, url)
+        } catch (e: ContentNotAvailableException) {
+            throw ContentUnavailable("youtube: playlist unavailable", e)
+        }
+        val first = page(
+            InfoItemsPage(info.relatedItems, info.nextPage, emptyList()),
+            { io { PlaylistInfo.getMoreItems(service, url, it) } },
+            ::toSong,
+        )
+        val collection = Collection(
+            id = url,
+            kind = CollectionKind.Playlist,
+            title = info.name,
+            subtitle = info.uploaderName?.takeIf { it.isNotBlank() },
+            artworkUri = artwork(info.thumbnails),
+            count = info.streamCount.takeIf { it >= 0 },
+        )
+        LinkedPlaylist(collection, Page(first.items, first.next, collection.count))
     }
 
     override suspend fun trending(): Chart = io {

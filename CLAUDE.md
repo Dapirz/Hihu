@@ -11,7 +11,7 @@ app/            composition root: Application, MainActivity, PlaybackService (Ex
                 Offline (Media3 downloads and the cache the player reads through), HihuDownloadService
 views/          screens/, shells/ (HihuRoot), chrome/ (mini player), shared/ (Artwork, SongList, Message)
 state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager,
-                SearchHistory, Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface)
+                SearchHistory, PlaylistImport, Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface)
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
                 MusicBrowse, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider
@@ -21,7 +21,7 @@ music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggesti
                 own (InnerTube.kt, YouTubeFeed.kt; no account, anonymous visitor id in memory only),
                 YouTube Charts (asked for directly in YouTubeCharts.kt, since
                 NewPipe 0.27.1 sends the country in upper case and gets a 403), and resolving
-                `hihu-yt://` URIs to audio streams
+                `hihu-yt://` URIs to audio streams, and opening shared playlist links (PlaylistLinks)
 router/         Destination (tabs, collections, playlists, queue, settings, player) and the Navigator back stack, pure Kotlin
 storage/        hihu.db on the platform's SQLite: schema and upgrades only; the queries live in state
 ui/             design system: HihuTheme, Metrics, CoverColors, Icons and drawables

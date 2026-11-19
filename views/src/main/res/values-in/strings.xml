@@ -40,6 +40,24 @@
     <string name="tab_library">Pustaka</string>
     <string name="search_hint">Lagu, artis</string>
     <string name="search_idle">Cari lagu atau artis di YouTube Music.</string>
+    <string name="import_title">Impor dari YouTube</string>
+    <string name="import_hint">Tempel link playlist YouTube atau YouTube Music yang publik atau tidak publik. Lagunya disalin ke playlist baru di sini.</string>
+    <string name="import_link">Link playlist</string>
+    <string name="import_start">Impor</string>
+    <string name="import_stop">Berhenti</string>
+    <string name="import_open">Buka</string>
+    <string name="import_close">Tutup</string>
+    <string name="import_reading_of">Membaca lagu… %1$d dari %2$d</string>
+    <plurals name="import_reading">
+        <item quantity="other">Membaca lagu… %d sejauh ini</item>
+    </plurals>
+    <plurals name="import_done">
+        <item quantity="other">%1$d lagu disalin ke “%2$s”.</item>
+    </plurals>
+    <string name="import_not_playlist">Itu bukan link playlist YouTube.</string>
+    <string name="import_unavailable">Playlist ini privat atau sudah tidak ada. Playlist privat perlu login.</string>
+    <string name="import_empty">Playlist ini tidak punya lagu yang bisa diputar Hihu.</string>
+    <string name="import_network">Tidak bisa membaca playlist. Periksa koneksi lalu coba lagi.</string>
     <string name="search_recent">Pencarian terakhir</string>
     <string name="search_recent_clear">Hapus semua</string>
     <string name="search_recent_remove">Hapus</string>

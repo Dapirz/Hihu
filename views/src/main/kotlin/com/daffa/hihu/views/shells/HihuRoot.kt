@@ -45,6 +45,7 @@ import com.daffa.hihu.state.Moods
 import com.daffa.hihu.state.Library
 import com.daffa.hihu.state.NowPlaying
 import com.daffa.hihu.state.Playback
+import com.daffa.hihu.state.PlaylistImport
 import com.daffa.hihu.state.Playlists
 import com.daffa.hihu.state.Preferences
 import com.daffa.hihu.state.Radio
@@ -54,6 +55,7 @@ import com.daffa.hihu.ui.HihuTheme
 import com.daffa.hihu.ui.Icons
 import com.daffa.hihu.views.shared.colors
 import com.daffa.hihu.views.R
+import com.daffa.hihu.views.chrome.ImportDialog
 import com.daffa.hihu.views.chrome.LocalSongActions
 import com.daffa.hihu.views.chrome.MiniPlayer
 import com.daffa.hihu.views.chrome.NameDialog
@@ -86,6 +88,7 @@ class AppState(
     val explore: Explore,
     val home: Home,
     val moods: Moods,
+    val playlistImport: PlaylistImport,
     val downloads: Downloads,
     val preferences: Preferences,
 )
@@ -108,6 +111,15 @@ fun HihuRoot(app: AppState) {
     // Songs waiting for a playlist: first the picker, then the name dialog for a new one.
     var picking by remember { mutableStateOf<List<Song>?>(null) }
     var naming by remember { mutableStateOf<List<Song>?>(null) }
+    // The import dialog, open with the link it starts from; a link shared from another app opens it.
+    var importing by rememberSaveable { mutableStateOf<String?>(null) }
+    val shared by app.playlistImport.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(shared) {
+        shared?.let {
+            importing = it
+            app.playlistImport.takePending()
+        }
+    }
     val context = LocalContext.current
     val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val actions = remember(app) {
@@ -140,14 +152,25 @@ fun HihuRoot(app: AppState) {
 
     HihuTheme(dark = dark, colors = palette.colors, black = black) {
         CompositionLocalProvider(LocalSongActions provides actions, LocalSongBadges provides badges) {
-            Screens(app, onNewPlaylist = { naming = emptyList() })
+            Screens(app, onNewPlaylist = { naming = emptyList() }, onImportPlaylist = { importing = "" })
             Dialogs(app, picking, naming, onPicking = { picking = it }, onNaming = { naming = it })
+            importing?.let { link ->
+                ImportDialog(
+                    importer = app.playlistImport,
+                    initial = link,
+                    onOpen = { id ->
+                        importing = null
+                        app.navigator.push(Destination.Playlist(id))
+                    },
+                    onDismiss = { importing = null },
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
+private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: () -> Unit) {
     val navigator = app.navigator
     val stack by navigator.stack.collectAsStateWithLifecycle()
     val now by app.playback.state.collectAsStateWithLifecycle()
@@ -223,6 +246,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit) {
                     onSettings = openSettings,
                     onOpenPlaylist = { navigator.push(Destination.Playlist(it)) },
                     onNewPlaylist = onNewPlaylist,
+                    onImportPlaylist = onImportPlaylist,
                     section = librarySection,
                     onSection = { librarySection = it },
                 )

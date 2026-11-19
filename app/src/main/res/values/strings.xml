@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Hihu</string>
     <string name="downloads_channel">Downloads</string>
+    <string name="share_import">Import to Hihu</string>
 </resources>

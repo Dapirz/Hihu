@@ -41,6 +41,26 @@
     <string name="tab_library">Library</string>
     <string name="search_hint">Songs, artists</string>
     <string name="search_idle">Search YouTube Music for a song or an artist.</string>
+    <string name="import_title">Import from YouTube</string>
+    <string name="import_hint">Paste a link to a public or unlisted YouTube or YouTube Music playlist. Its songs are copied into a new playlist here.</string>
+    <string name="import_link">Playlist link</string>
+    <string name="import_start">Import</string>
+    <string name="import_stop">Stop</string>
+    <string name="import_open">Open</string>
+    <string name="import_close">Close</string>
+    <string name="import_reading_of">Reading songs… %1$d of %2$d</string>
+    <plurals name="import_reading">
+        <item quantity="one">Reading songs… %d so far</item>
+        <item quantity="other">Reading songs… %d so far</item>
+    </plurals>
+    <plurals name="import_done">
+        <item quantity="one">Copied %1$d song into “%2$s”.</item>
+        <item quantity="other">Copied %1$d songs into “%2$s”.</item>
+    </plurals>
+    <string name="import_not_playlist">That isn\'t a YouTube playlist link.</string>
+    <string name="import_unavailable">This playlist is private or no longer exists. Private playlists need signing in.</string>
+    <string name="import_empty">This playlist has no songs Hihu can play.</string>
+    <string name="import_network">Couldn\'t read the playlist. Check your connection and try again.</string>
     <string name="search_recent">Recent searches</string>
     <string name="search_recent_clear">Clear all</string>
     <string name="search_recent_remove">Remove</string>

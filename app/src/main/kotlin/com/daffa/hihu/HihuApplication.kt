@@ -17,6 +17,7 @@ import com.daffa.hihu.state.Home
 import com.daffa.hihu.state.Moods
 import com.daffa.hihu.state.Library
 import com.daffa.hihu.state.Playback
+import com.daffa.hihu.state.PlaylistImport
 import com.daffa.hihu.state.Playlists
 import com.daffa.hihu.state.Preferences
 import com.daffa.hihu.state.Radio
@@ -58,12 +59,13 @@ class HihuApplication : Application() {
             saved = SavedQueue(store),
             onSongStarted = history::record,
         )
+        val playlists = Playlists(store, scope)
         state = AppState(
             navigator = Navigator(Destination.Home),
             library = Library(MediaStoreLibrary(this), scope),
             search = Search(youtube, scope, SearchHistory(store, scope)),
             collections = Collections(youtube, scope),
-            playlists = Playlists(store, scope),
+            playlists = playlists,
             favorites = favorites,
             history = history,
             playback = playback,
@@ -72,6 +74,7 @@ class HihuApplication : Application() {
             explore = Explore(youtube, youtube, scope),
             home = Home(youtube, youtube, history, favorites, scope),
             moods = Moods(youtube, scope),
+            playlistImport = PlaylistImport(youtube, playlists, scope),
             downloads = Downloads(offline, store, scope),
             preferences = preferences,
         )
