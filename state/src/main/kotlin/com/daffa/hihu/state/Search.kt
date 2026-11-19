@@ -24,7 +24,12 @@ data class SearchQuery(
  * Searches a [MusicSearch] and keeps the results for the whole app. [query] holds what was
  * submitted and the suggestions; [results] the pages of hits, appended by [loadMore].
  */
-class Search(private val source: MusicSearch, private val scope: CoroutineScope) {
+class Search(
+    private val source: MusicSearch,
+    private val scope: CoroutineScope,
+    /** Every submitted query is noted here, for the list shown while the field is empty. */
+    val history: SearchHistory,
+) {
     private val _query = MutableStateFlow(SearchQuery())
     val query: StateFlow<SearchQuery> = _query.asStateFlow()
 
@@ -38,6 +43,7 @@ class Search(private val source: MusicSearch, private val scope: CoroutineScope)
         val trimmed = text.trim()
         suggesting?.cancel()
         _query.value = _query.value.copy(text = trimmed, suggestions = emptyList())
+        history.record(trimmed)
         run()
     }
 

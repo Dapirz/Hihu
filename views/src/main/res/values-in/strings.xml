@@ -40,6 +40,9 @@
     <string name="tab_library">Pustaka</string>
     <string name="search_hint">Lagu, artis</string>
     <string name="search_idle">Cari lagu atau artis di YouTube Music.</string>
+    <string name="search_recent">Pencarian terakhir</string>
+    <string name="search_recent_clear">Hapus semua</string>
+    <string name="search_recent_remove">Hapus</string>
     <string name="search_empty">Tidak ada hasil untuk “%1$s”.</string>
     <string name="search_kind">Cari</string>
     <string name="kind_songs">Lagu</string>

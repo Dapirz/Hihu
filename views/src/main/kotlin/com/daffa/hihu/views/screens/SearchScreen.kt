@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -81,6 +82,7 @@ fun SearchScreen(
     val m = HihuTheme.metrics
     val query by search.query.collectAsStateWithLifecycle()
     val results by search.results.collectAsStateWithLifecycle()
+    val recent by search.history.recent.collectAsStateWithLifecycle()
     var text by rememberSaveable { mutableStateOf(query.text) }
     var focused by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
@@ -126,6 +128,14 @@ fun SearchScreen(
             when {
                 focused && query.suggestions.isNotEmpty() ->
                     Suggestions(query.suggestions, listPadding, onPick = ::submit)
+                // With nothing typed, past searches stand in for the empty results.
+                text.isEmpty() && recent.isNotEmpty() && (focused || !results.loaded) -> Recent(
+                    queries = recent,
+                    padding = listPadding,
+                    onPick = ::submit,
+                    onRemove = search.history::remove,
+                    onClear = search.history::clear,
+                )
                 results.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
                 results.failed -> Message(stringResource(R.string.search_failed), stringResource(R.string.retry), search::retry)
                 !results.loaded -> Message(stringResource(R.string.search_idle))
@@ -208,6 +218,66 @@ private fun Suggestions(suggestions: List<String>, padding: PaddingValues, onPic
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(start = m.gapLg),
                 )
+            }
+        }
+    }
+}
+
+/** Past searches, newest first: tap one to search it again, or remove it or all of them. */
+@Composable
+private fun Recent(
+    queries: List<String>,
+    padding: PaddingValues,
+    onPick: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    val m = HihuTheme.metrics
+    val remove = stringResource(R.string.search_recent_remove)
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item(key = "header") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(start = m.gapXl, end = m.gapSm),
+            ) {
+                Text(
+                    stringResource(R.string.search_recent),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onClear) { Text(stringResource(R.string.search_recent_clear)) }
+            }
+        }
+        items(queries, key = { it }) { query ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onPick(query) }
+                    .padding(start = m.gapXl, end = m.gapXs),
+            ) {
+                Icon(
+                    painterResource(Icons.history),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(m.iconMd),
+                )
+                Text(
+                    query,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(horizontal = m.gapLg),
+                )
+                IconButton(onClick = { onRemove(query) }) {
+                    Icon(
+                        painterResource(Icons.close),
+                        contentDescription = "$remove $query",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(m.iconSm),
+                    )
+                }
             }
         }
     }

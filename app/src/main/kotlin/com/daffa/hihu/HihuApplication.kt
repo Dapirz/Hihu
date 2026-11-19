@@ -22,6 +22,7 @@ import com.daffa.hihu.state.Preferences
 import com.daffa.hihu.state.Radio
 import com.daffa.hihu.state.SavedQueue
 import com.daffa.hihu.state.Search
+import com.daffa.hihu.state.SearchHistory
 import com.daffa.hihu.state.SongLyrics
 import com.daffa.hihu.music.lrclib.Lrclib
 import com.daffa.hihu.state.Store
@@ -60,7 +61,7 @@ class HihuApplication : Application() {
         state = AppState(
             navigator = Navigator(Destination.Home),
             library = Library(MediaStoreLibrary(this), scope),
-            search = Search(youtube, scope),
+            search = Search(youtube, scope, SearchHistory(store, scope)),
             collections = Collections(youtube, scope),
             playlists = Playlists(store, scope),
             favorites = favorites,

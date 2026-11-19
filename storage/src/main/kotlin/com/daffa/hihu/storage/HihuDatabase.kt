@@ -28,7 +28,7 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
 
     private companion object {
         const val NAME = "hihu.db"
-        const val VERSION = 2
+        const val VERSION = 3
 
         val SCHEMA = listOf(
             """
@@ -93,6 +93,14 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
                 CREATE TABLE downloads (
                     song_id TEXT PRIMARY KEY REFERENCES songs(id),
                     added_at INTEGER NOT NULL
+                )
+                """,
+            ),
+            3 to listOf(
+                """
+                CREATE TABLE search_history (
+                    query TEXT PRIMARY KEY COLLATE NOCASE,
+                    searched_at INTEGER NOT NULL
                 )
                 """,
             ),

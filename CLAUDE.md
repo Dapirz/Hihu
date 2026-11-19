@@ -11,7 +11,7 @@ app/            composition root: Application, MainActivity, PlaybackService (Ex
                 Offline (Media3 downloads and the cache the player reads through), HihuDownloadService
 views/          screens/, shells/ (HihuRoot), chrome/ (mini player), shared/ (Artwork, SongList, Message)
 state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager,
-                Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface)
+                SearchHistory, Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface)
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
                 MusicBrowse, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider

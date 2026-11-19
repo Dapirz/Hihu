@@ -33,4 +33,5 @@ object Icons {
     val download = R.drawable.ic_download
     val downloadDone = R.drawable.ic_download_done
     val check = R.drawable.ic_check
+    val history = R.drawable.ic_history
 }
