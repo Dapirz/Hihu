@@ -1,0 +1,136 @@
+package com.daffa.hihu.views.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.daffa.hihu.music.CollectionKind
+import com.daffa.hihu.music.Song
+import com.daffa.hihu.state.NowPlaying
+import com.daffa.hihu.state.OpenCollection
+import com.daffa.hihu.state.Playback
+import com.daffa.hihu.ui.HihuTheme
+import com.daffa.hihu.ui.Icons
+import com.daffa.hihu.views.R
+import com.daffa.hihu.views.chrome.CommonSongItems
+import com.daffa.hihu.views.shared.Artwork
+import com.daffa.hihu.views.shared.Message
+import com.daffa.hihu.views.shared.SongList
+import com.daffa.hihu.views.shared.collectionSubtitle
+import com.daffa.hihu.views.shared.more
+
+/**
+ * An album or artist: the cover, title and Play all / Shuffle above its songs, which keep
+ * loading as the list is scrolled.
+ */
+@Composable
+fun CollectionScreen(
+    open: OpenCollection,
+    playback: Playback,
+    now: NowPlaying,
+    contentPadding: PaddingValues,
+    onBack: () -> Unit,
+) {
+    val m = HihuTheme.metrics
+    val songs by open.songs.collectAsStateWithLifecycle()
+    val padding = PaddingValues(bottom = contentPadding.calculateBottomPadding())
+
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = m.gapXs)) {
+            IconButton(onClick = onBack) {
+                Icon(painterResource(Icons.back), stringResource(R.string.back), Modifier.size(m.iconMd))
+            }
+        }
+        when {
+            songs.loading -> Column {
+                Header(open, songs = emptyList(), total = null, playback = playback)
+                Box(Modifier.fillMaxWidth().padding(m.gapXl), Alignment.Center) { CircularProgressIndicator() }
+            }
+            songs.failed -> Message(stringResource(R.string.collection_failed), stringResource(R.string.retry), open::retry)
+            songs.items.isEmpty() -> Message(stringResource(R.string.collection_empty))
+            else -> SongList(
+                songs = songs.items,
+                playingId = now.songId,
+                padding = padding,
+                onPlay = { index -> playback.play(songs.items, index) },
+                more = songs.more(open::loadMore),
+                header = { Header(open, songs.items, songs.total, playback) },
+                menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun Header(open: OpenCollection, songs: List<Song>, total: Long?, playback: Playback) {
+    val m = HihuTheme.metrics
+    // An album's length is only known once its page is open; an artist's count is subscribers.
+    val collection = when (open.collection.kind) {
+        CollectionKind.Album -> open.collection.copy(count = total ?: open.collection.count)
+        CollectionKind.Artist -> open.collection
+    }
+    val radius = when (collection.kind) {
+        CollectionKind.Album -> m.radiusLg
+        CollectionKind.Artist -> m.collectionArtwork / 2
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = m.gapXl, vertical = m.gapLg),
+    ) {
+        Artwork(collection.artworkUri, m.collectionArtwork, radius = radius)
+        Text(
+            collection.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = m.gapLg),
+        )
+        collectionSubtitle(collection)?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = m.gapXs),
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(m.gapMd),
+            modifier = Modifier.padding(top = m.gapLg),
+        ) {
+            Button(onClick = { playback.playAll(songs, shuffle = false) }, enabled = songs.isNotEmpty()) {
+                Icon(painterResource(Icons.play), contentDescription = null, Modifier.size(m.iconSm))
+                Text(stringResource(R.string.play_all), Modifier.padding(start = m.gapSm))
+            }
+            FilledTonalButton(onClick = { playback.playAll(songs, shuffle = true) }, enabled = songs.isNotEmpty()) {
+                Icon(painterResource(Icons.shuffle), contentDescription = null, Modifier.size(m.iconSm))
+                Text(stringResource(R.string.shuffle), Modifier.padding(start = m.gapSm))
+            }
+        }
+    }
+}

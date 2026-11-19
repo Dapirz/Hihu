@@ -1,0 +1,15 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+*.apk
+*.aab
+
+# UI reference screenshots stay on the machine: they show other apps and a personal account.
+references/ui/*.jpg
+references/ui/*.jpeg
+references/ui/*.png
+references/ui/*.webp
