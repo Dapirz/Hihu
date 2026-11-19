@@ -196,14 +196,11 @@ class YouTubeMusic(
     }
 
     override suspend fun trending(): Chart = io {
+        // YouTube Charts (charts.youtube.com) now wants a reCAPTCHA token with every request, so the
+        // chart comes from YouTube Music's own charts page, which the anonymous client can read.
         val country = NewPipe.getPreferredContentCountry().countryCode
-        val language = NewPipe.getPreferredLocalization().languageCode
-        // YouTube Charts covers about sixty countries; elsewhere, or if it fails, show the US chart.
-        val songs = runCatching { YouTubeCharts.trending(country, language) }.getOrNull()?.takeIf { it.isNotEmpty() }
-        when (songs) {
-            null -> Chart(FALLBACK_COUNTRY, Page(YouTubeCharts.trending(FALLBACK_COUNTRY, language), null))
-            else -> Chart(country, Page(songs, null))
-        }
+        val songs = feed.trending()?.takeIf { it.isNotEmpty() } ?: error("youtube: the charts page has no chart")
+        Chart(country, Page(songs, null))
     }
 
     override fun hasRadio(song: Song): Boolean = song.uri.startsWith("$SCHEME://")

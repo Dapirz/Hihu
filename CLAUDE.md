@@ -21,8 +21,8 @@ music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggesti
                 songs, radio mixes, home/explore/mood feeds and plain lyrics through a small InnerTube client of its
                 own (InnerTube.kt, YouTubeFeed.kt; anonymous, with the visitor id in memory only, except a
                 second signed client for the account's library and its playlists),
-                YouTube Charts (asked for directly in YouTubeCharts.kt, since
-                NewPipe 0.27.1 sends the country in upper case and gets a 403), and resolving
+                the trending chart from YouTube Music's own charts page (charts.youtube.com now wants a
+                reCAPTCHA token, which Hihu does not get around), and resolving
                 `hihu-yt://` URIs to audio streams, and opening shared playlist links (PlaylistLinks)
 router/         Destination (tabs, collections, playlists, queue, settings, player) and the Navigator back stack, pure Kotlin
 storage/        hihu.db on the platform's SQLite: schema and upgrades only; the queries live in state

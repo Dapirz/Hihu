@@ -49,6 +49,18 @@ internal class YouTubeFeed(private val api: InnerTube) {
             .joinToString("") { it.getString("text", "") }.takeIf { it.isNotBlank() }
     }
 
+    /**
+     * The songs of the first chart on YouTube Music's charts page for the client's country, which
+     * is its trending list ("Trending 20"). Null when the page has no chart playlist.
+     */
+    fun trending(): List<Song>? {
+        val chart = findAll(api.browse(browseId = CHARTS), CARD)
+            .map { it.getObject("navigationEndpoint").getObject("browseEndpoint") }
+            .firstOrNull { pageType(it) == PLAYLIST }
+            ?.getString("browseId", null)?.removePrefix("VL") ?: return null
+        return playlistSongs(chart).items
+    }
+
     /** The signed-in account from the account menu; [api] must carry a session. */
     fun profile(): AccountProfile {
         val header = findObject(api.accountMenu(), "activeAccountHeaderRenderer")
@@ -223,6 +235,7 @@ internal class YouTubeFeed(private val api: InnerTube) {
     private companion object {
         const val HOME = "FEmusic_home"
         const val LYRICS_PREFIX = "MPLY"
+        const val CHARTS = "FEmusic_charts"
         const val ROW = "musicResponsiveListItemRenderer"
         const val CARD = "musicTwoRowItemRenderer"
         const val EXPLORE = "FEmusic_explore"
