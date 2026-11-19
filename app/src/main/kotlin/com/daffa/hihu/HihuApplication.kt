@@ -25,6 +25,7 @@ import com.daffa.hihu.state.SavedQueue
 import com.daffa.hihu.state.Search
 import com.daffa.hihu.state.SearchHistory
 import com.daffa.hihu.state.SongLyrics
+import com.daffa.hihu.music.FirstLyrics
 import com.daffa.hihu.music.lrclib.Lrclib
 import com.daffa.hihu.state.Store
 import com.daffa.hihu.views.shells.AppState
@@ -70,7 +71,8 @@ class HihuApplication : Application() {
             history = history,
             playback = playback,
             radio = Radio(youtube, playback, scope),
-            lyrics = SongLyrics(Lrclib(), playback, scope),
+            // LRCLIB first, for its synced lines; YouTube Music has plain lyrics for many songs LRCLIB lacks.
+            lyrics = SongLyrics(FirstLyrics(listOf(Lrclib(), youtube)), playback, scope),
             explore = Explore(youtube, youtube, scope),
             home = Home(youtube, youtube, history, favorites, scope),
             moods = Moods(youtube, scope),

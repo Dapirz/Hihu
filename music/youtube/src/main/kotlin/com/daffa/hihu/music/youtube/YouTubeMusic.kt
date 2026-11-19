@@ -5,6 +5,8 @@ import com.daffa.hihu.music.Chart
 import com.daffa.hihu.music.Collection
 import com.daffa.hihu.music.ContentUnavailable
 import com.daffa.hihu.music.LinkedPlaylist
+import com.daffa.hihu.music.Lyrics
+import com.daffa.hihu.music.LyricsProvider
 import com.daffa.hihu.music.PlaylistLinks
 import com.daffa.hihu.music.ExploreFeed
 import com.daffa.hihu.music.Mood
@@ -60,7 +62,7 @@ class YouTubeMusic(
     locale: Locale = Locale.getDefault(),
     /** Read every time a song is resolved, so a changed setting applies to the next song. */
     private val quality: () -> AudioQuality = { AudioQuality.Normal },
-) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, StreamResolver {
+) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, LyricsProvider, StreamResolver {
 
     private val service = ServiceList.YouTube
     private val resolved = ConcurrentHashMap<String, Cached>()
@@ -80,6 +82,13 @@ class YouTubeMusic(
     override suspend fun mood(mood: Mood): List<Shelf> = io { feed.mood(mood) }
 
     override val scheme: String = SCHEME
+
+    /** YouTube Music's own lyrics, plain text without times; only for songs from YouTube. */
+    override suspend fun lyrics(song: Song): Lyrics? {
+        if (!song.uri.startsWith("$SCHEME://")) return null
+        val text = io { feed.lyrics(song.uri.removePrefix("$SCHEME://")) } ?: return null
+        return Lyrics(synced = null, plain = text, source = LYRICS_SOURCE)
+    }
 
     override suspend fun search(query: String, kind: SearchKind): Page<SearchResult> = io {
         val filter = when (kind) {
@@ -199,6 +208,7 @@ class YouTubeMusic(
 
     private companion object {
         const val SCHEME = "hihu-yt"
+        const val LYRICS_SOURCE = "YouTube Music"
         const val WATCH_URL = "https://www.youtube.com/watch?v="
         const val YOUTUBE_ORIGIN = "https://www.youtube.com"
         const val FALLBACK_COUNTRY = "US"

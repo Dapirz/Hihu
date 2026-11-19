@@ -17,7 +17,7 @@ music/          models and provider interfaces only (Song, Collection, Page, Son
 music/local/    the MediaStore provider
 music/lrclib/   lyrics from lrclib.net (title, artist and length only), parsed with NewPipe's nanojson
 music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggestions, album and artist
-                songs, radio mixes, home/explore/mood feeds through a small InnerTube client of its
+                songs, radio mixes, home/explore/mood feeds and plain lyrics through a small InnerTube client of its
                 own (InnerTube.kt, YouTubeFeed.kt; no account, anonymous visitor id in memory only),
                 YouTube Charts (asked for directly in YouTubeCharts.kt, since
                 NewPipe 0.27.1 sends the country in upper case and gets a 403), and resolving

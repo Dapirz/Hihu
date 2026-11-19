@@ -30,6 +30,23 @@ internal class YouTubeFeed(private val api: InnerTube) {
     fun mood(mood: Mood): List<Shelf> =
         sections(api.browse(browseId = MOOD_PAGE, params = mood.ref)).contents.mapNotNull(::shelf)
 
+    /**
+     * The plain lyrics YouTube Music shows for [videoId], or null when it has none. Its watch page
+     * names a lyrics tab only for songs with lyrics; that tab is a browse page with the text.
+     */
+    fun lyrics(videoId: String): String? {
+        val tabs = api.next(videoId).getObject("contents").getObject("singleColumnMusicWatchNextResultsRenderer")
+            .getObject("tabbedRenderer").getObject("watchNextTabbedResultsRenderer").getArray("tabs").objects()
+        val browseId = tabs.map { it.getObject("tabRenderer").getObject("endpoint").getObject("browseEndpoint") }
+            .firstOrNull { it.getString("browseId", "").startsWith(LYRICS_PREFIX) }
+            ?.getString("browseId") ?: return null
+        val shelf = api.browse(browseId = browseId).getObject("contents").getObject("sectionListRenderer")
+            .getArray("contents").objects().firstNotNullOfOrNull { it.getObject("musicDescriptionShelfRenderer").takeIf { s -> s.isNotEmpty() } }
+            ?: return null
+        return shelf.getObject("description").getArray("runs").objects()
+            .joinToString("") { it.getString("text", "") }.takeIf { it.isNotBlank() }
+    }
+
     /** One page of home and, when there is more, how to fetch the next one. */
     private fun homePage(list: SectionList): Page<Shelf> {
         val shelves = list.contents.mapNotNull(::shelf).filter { it.items.isNotEmpty() }
@@ -147,6 +164,7 @@ internal class YouTubeFeed(private val api: InnerTube) {
 
     private companion object {
         const val HOME = "FEmusic_home"
+        const val LYRICS_PREFIX = "MPLY"
         const val EXPLORE = "FEmusic_explore"
         const val MOOD_PAGE = "FEmusic_moods_and_genres_category"
         const val ALBUM = "MUSIC_PAGE_TYPE_ALBUM"
