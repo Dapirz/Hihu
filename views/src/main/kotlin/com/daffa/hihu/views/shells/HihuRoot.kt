@@ -52,6 +52,7 @@ import com.daffa.hihu.state.Search
 import com.daffa.hihu.state.SongLyrics
 import com.daffa.hihu.ui.HihuTheme
 import com.daffa.hihu.ui.Icons
+import com.daffa.hihu.views.shared.colors
 import com.daffa.hihu.views.R
 import com.daffa.hihu.views.chrome.LocalSongActions
 import com.daffa.hihu.views.chrome.MiniPlayer
@@ -102,6 +103,8 @@ fun HihuRoot(app: AppState) {
         Appearance.Light -> false
         Appearance.Dark -> true
     }
+    val palette by app.preferences.palette.collectAsStateWithLifecycle()
+    val black by app.preferences.black.collectAsStateWithLifecycle()
     // Songs waiting for a playlist: first the picker, then the name dialog for a new one.
     var picking by remember { mutableStateOf<List<Song>?>(null) }
     var naming by remember { mutableStateOf<List<Song>?>(null) }
@@ -135,7 +138,7 @@ fun HihuRoot(app: AppState) {
         }.toMap()
     }
 
-    HihuTheme(dark = dark) {
+    HihuTheme(dark = dark, colors = palette.colors, black = black) {
         CompositionLocalProvider(LocalSongActions provides actions, LocalSongBadges provides badges) {
             Screens(app, onNewPlaylist = { naming = emptyList() })
             Dialogs(app, picking, naming, onPicking = { picking = it }, onNaming = { naming = it })

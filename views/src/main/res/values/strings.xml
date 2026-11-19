@@ -54,6 +54,16 @@
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="settings_colors">Colours</string>
+    <string name="palette_wallpaper">Wallpaper colours</string>
+    <string name="palette_violet">Violet</string>
+    <string name="palette_blue">Blue</string>
+    <string name="palette_teal">Teal</string>
+    <string name="palette_green">Green</string>
+    <string name="palette_rose">Rose</string>
+    <string name="palette_amber">Amber</string>
+    <string name="theme_black">Pure black</string>
+    <string name="theme_black_detail">Black background in the dark theme. Saves battery on AMOLED screens.</string>
     <string name="settings_quality">Streaming quality</string>
     <string name="quality_high">High</string>
     <string name="quality_high_detail">The best YouTube offers, about 160 kbps. Uses the most data.</string>

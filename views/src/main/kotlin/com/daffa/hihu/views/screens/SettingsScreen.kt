@@ -41,13 +41,33 @@ import com.daffa.hihu.state.Preferences
 import com.daffa.hihu.ui.HihuTheme
 import com.daffa.hihu.ui.Icons
 import com.daffa.hihu.views.R
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Switch
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.daffa.hihu.state.Palette
+import com.daffa.hihu.views.shared.availablePalettes
+import com.daffa.hihu.views.shared.colors
+import com.daffa.hihu.views.shared.label
 
-/** Theme and audio quality, each a group of radio buttons. Changes are saved straight away. */
+/** Theme, colours, audio quality and downloads. Changes are saved straight away. */
 @Composable
 fun SettingsScreen(preferences: Preferences, downloads: Downloads, onBack: () -> Unit) {
     val m = HihuTheme.metrics
     val appearance by preferences.appearance.collectAsStateWithLifecycle()
     val quality by preferences.quality.collectAsStateWithLifecycle()
+    val palette by preferences.palette.collectAsStateWithLifecycle()
+    val black by preferences.black.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = m.gapXs)) {
@@ -75,6 +95,14 @@ fun SettingsScreen(preferences: Preferences, downloads: Downloads, onBack: () ->
                 },
                 detail = { null },
                 onSelect = preferences::setAppearance,
+            )
+            Section(stringResource(R.string.settings_colors))
+            Swatches(selected = palette, onSelect = preferences::setPalette)
+            Toggle(
+                title = R.string.theme_black,
+                detail = R.string.theme_black_detail,
+                checked = black,
+                onChange = preferences::setBlack,
             )
             Section(stringResource(R.string.settings_quality))
             Choices(
@@ -150,6 +178,75 @@ private fun DownloadsSection(downloads: Downloads) {
         )
     }
 }
+
+/** A row of colour circles, one per palette, the chosen one ringed and ticked. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Swatches(selected: Palette, onSelect: (Palette) -> Unit) {
+    val m = HihuTheme.metrics
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(m.gapMd),
+        verticalArrangement = Arrangement.spacedBy(m.gapMd),
+        modifier = Modifier
+            .padding(horizontal = m.gapXl, vertical = m.gapSm)
+            .selectableGroup(),
+    ) {
+        availablePalettes.forEach { palette ->
+            val chosen = palette == selected
+            val color = palette.colors.swatch()
+            val name = stringResource(palette.label)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(m.swatch)
+                    .clip(CircleShape)
+                    .background(color)
+                    .then(
+                        when (chosen) {
+                            true -> Modifier.border(m.swatchRing, MaterialTheme.colorScheme.onSurface, CircleShape)
+                            false -> Modifier
+                        },
+                    )
+                    .selectable(selected = chosen, onClick = { onSelect(palette) }, role = Role.RadioButton)
+                    .semantics { contentDescription = name },
+            ) {
+                if (chosen) {
+                    Icon(
+                        painterResource(Icons.check),
+                        contentDescription = null,
+                        tint = if (color.luminance() > HALF) Color.Black else Color.White,
+                        modifier = Modifier.size(m.iconMd),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A setting that is on or off, with a line explaining it. The whole row toggles. */
+@Composable
+private fun Toggle(title: Int, detail: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val m = HihuTheme.metrics
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, onValueChange = onChange, role = Role.Switch)
+            .padding(horizontal = m.gapXl, vertical = m.gapSm),
+    ) {
+        Column(Modifier.weight(1f).padding(end = m.gapMd)) {
+            Text(stringResource(title), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(detail),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = null)
+    }
+}
+
+private const val HALF = 0.5f
 
 @Composable
 private fun Section(title: String) {

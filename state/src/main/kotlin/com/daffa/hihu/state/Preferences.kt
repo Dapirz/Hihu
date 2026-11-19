@@ -6,8 +6,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Light or dark, or whatever the system is set to. More themes slot in here later. */
+/** Light or dark, or whatever the system is set to. */
 enum class Appearance { System, Light, Dark }
+
+/** The colour family the theme is built from: the wallpaper's, or a fixed one. */
+enum class Palette { Wallpaper, Violet, Blue, Teal, Green, Rose, Amber }
 
 /**
  * The user's settings, kept in SharedPreferences so no extra library is needed. Each setting is
@@ -19,12 +22,29 @@ class Preferences(context: Context) {
     private val _appearance = MutableStateFlow(read(KEY_APPEARANCE, Appearance.System))
     val appearance: StateFlow<Appearance> = _appearance.asStateFlow()
 
+    private val _palette = MutableStateFlow(read(KEY_PALETTE, Palette.Wallpaper))
+    val palette: StateFlow<Palette> = _palette.asStateFlow()
+
+    /** Pure black backgrounds in the dark theme, for AMOLED screens. */
+    private val _black = MutableStateFlow(prefs.getBoolean(KEY_BLACK, false))
+    val black: StateFlow<Boolean> = _black.asStateFlow()
+
     private val _quality = MutableStateFlow(read(KEY_QUALITY, AudioQuality.Normal))
     val quality: StateFlow<AudioQuality> = _quality.asStateFlow()
 
     fun setAppearance(value: Appearance) {
         _appearance.value = value
         prefs.edit().putString(KEY_APPEARANCE, value.name).apply()
+    }
+
+    fun setPalette(value: Palette) {
+        _palette.value = value
+        prefs.edit().putString(KEY_PALETTE, value.name).apply()
+    }
+
+    fun setBlack(value: Boolean) {
+        _black.value = value
+        prefs.edit().putBoolean(KEY_BLACK, value).apply()
     }
 
     fun setQuality(value: AudioQuality) {
@@ -39,6 +59,8 @@ class Preferences(context: Context) {
     private companion object {
         const val FILE = "settings"
         const val KEY_APPEARANCE = "appearance"
+        const val KEY_PALETTE = "palette"
+        const val KEY_BLACK = "pure_black"
         const val KEY_QUALITY = "audio_quality"
     }
 }

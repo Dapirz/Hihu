@@ -53,6 +53,16 @@
     <string name="theme_system">Ikuti sistem</string>
     <string name="theme_light">Terang</string>
     <string name="theme_dark">Gelap</string>
+    <string name="settings_colors">Warna</string>
+    <string name="palette_wallpaper">Warna wallpaper</string>
+    <string name="palette_violet">Ungu</string>
+    <string name="palette_blue">Biru</string>
+    <string name="palette_teal">Hijau toska</string>
+    <string name="palette_green">Hijau</string>
+    <string name="palette_rose">Merah muda</string>
+    <string name="palette_amber">Jingga</string>
+    <string name="theme_black">Hitam pekat</string>
+    <string name="theme_black_detail">Latar hitam di tema gelap. Menghemat baterai di layar AMOLED.</string>
     <string name="settings_quality">Kualitas streaming</string>
     <string name="quality_high">Tinggi</string>
     <string name="quality_high_detail">Kualitas terbaik dari YouTube, sekitar 160 kbps. Paling boros kuota.</string>

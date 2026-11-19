@@ -46,6 +46,9 @@ data class Metrics(
     val moodWidth: Dp = 168.dp,
     val moodHeight: Dp = 52.dp,
     val moodStripe: Dp = 6.dp,
+    /** A colour circle in the theme picker. */
+    val swatch: Dp = 44.dp,
+    val swatchRing: Dp = 3.dp,
 )
 
 internal val LocalMetrics = staticCompositionLocalOf { Metrics() }
