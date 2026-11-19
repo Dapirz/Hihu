@@ -105,6 +105,14 @@ minSdk is 29.
   comment saying what it is for and what a caller has to know. One or two plain sentences.
 - Two-arm boolean choices use `when (flag) { true -> …; false -> … }`. Return early.
 
+## Versions
+
+`versionName` in `app/build.gradle.kts` follows MAJOR.MINOR.PATCH and goes up with every change
+that ships, by how big the change is: a fix or small tweak bumps PATCH (0.1.0 → 0.1.1), a new
+feature bumps MINOR and resets PATCH (0.1.1 → 0.2.0), a change that breaks what users have (data,
+sign-in, a removed feature) bumps MAJOR. `versionCode` goes up by one each time. Both flavours share
+the version. A release on GitHub is tagged `v<versionName>`.
+
 ## Commits
 
 Conventional Commits: `type(scope): description`, imperative, lowercase, no trailing period.
