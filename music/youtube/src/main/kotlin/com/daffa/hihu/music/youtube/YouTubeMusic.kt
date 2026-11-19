@@ -104,11 +104,17 @@ class YouTubeMusic(
 
     override suspend fun followedArtists(): Page<Collection> = io { account.library(LIBRARY_ARTISTS) }.onIo()
 
-    override suspend fun home(): Page<Shelf> = io { feed.home() }.onIo()
+    override suspend fun home(): Page<Shelf> = io { browsing().home() }.onIo()
 
-    override suspend fun explore(): ExploreFeed = io { feed.explore() }
+    override suspend fun explore(): ExploreFeed = io { browsing().explore() }
 
-    override suspend fun mood(mood: Mood): List<Shelf> = io { feed.mood(mood) }
+    override suspend fun mood(mood: Mood): List<Shelf> = io { browsing().mood(mood) }
+
+    /** Signed in, home, explore and moods come as the account sees them; otherwise anonymously. */
+    private fun browsing(): YouTubeFeed = when (session != null) {
+        true -> account
+        false -> feed
+    }
 
     override val scheme: String = SCHEME
 

@@ -29,7 +29,13 @@ import com.daffa.hihu.music.FirstLyrics
 import com.daffa.hihu.music.lrclib.Lrclib
 import com.daffa.hihu.state.Store
 import com.daffa.hihu.views.shells.AppState
+import com.daffa.hihu.state.Account
+import com.daffa.hihu.state.AccountStatus
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * The composition root. This is the only place that names a concrete provider; everything else
@@ -81,6 +87,17 @@ class HihuApplication : Application() {
             preferences = preferences,
             account = accountFor(youtube, this, scope),
         )
+        state.account?.let(::followAccount)
+    }
+
+    /** Reloads home and explore when the account signs in or out, since both follow it. */
+    private fun followAccount(account: Account) {
+        scope.launch {
+            account.status.map { it is AccountStatus.SignedIn }.distinctUntilChanged().drop(1).collect {
+                state.home.refresh()
+                state.explore.refresh()
+            }
+        }
     }
 
     /**
