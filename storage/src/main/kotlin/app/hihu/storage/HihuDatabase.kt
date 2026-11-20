@@ -28,7 +28,7 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
 
     private companion object {
         const val NAME = "hihu.db"
-        const val VERSION = 4
+        const val VERSION = 5
 
         val SCHEMA = listOf(
             """
@@ -111,6 +111,15 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
                     song_id TEXT PRIMARY KEY REFERENCES songs(id),
                     liked INTEGER NOT NULL,
                     queued_at INTEGER NOT NULL
+                )
+                """,
+            ),
+            5 to listOf(
+                // How much later (or, negative, earlier) to show a song's synced lyrics.
+                """
+                CREATE TABLE lyrics_offsets (
+                    song_id TEXT PRIMARY KEY,
+                    offset_ms INTEGER NOT NULL
                 )
                 """,
             ),

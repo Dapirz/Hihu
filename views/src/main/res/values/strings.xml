@@ -115,6 +115,13 @@
     <string name="lyrics_missing">No lyrics found for this song.</string>
     <string name="lyrics_failed">Couldn\'t load the lyrics.</string>
     <string name="lyrics_source">Lyrics from %1$s</string>
+    <string name="lyrics_earlier">−0.5 s</string>
+    <string name="lyrics_earlier_label">Show the lyrics half a second earlier</string>
+    <string name="lyrics_later">+0.5 s</string>
+    <string name="lyrics_later_label">Show the lyrics half a second later</string>
+    <string name="lyrics_timing">Timing</string>
+    <string name="lyrics_timing_moved">Timing %1$s s</string>
+    <string name="lyrics_timing_reset">Reset the timing</string>
     <string name="download">Download</string>
     <string name="download_remove">Remove download</string>
     <string name="download_retry">Download again</string>

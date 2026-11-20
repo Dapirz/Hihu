@@ -111,6 +111,13 @@
     <string name="lyrics_missing">Lirik lagu ini belum ketemu.</string>
     <string name="lyrics_failed">Gagal memuat lirik.</string>
     <string name="lyrics_source">Lirik dari %1$s</string>
+    <string name="lyrics_earlier">−0,5 dtk</string>
+    <string name="lyrics_earlier_label">Tampilkan lirik setengah detik lebih awal</string>
+    <string name="lyrics_later">+0,5 dtk</string>
+    <string name="lyrics_later_label">Tampilkan lirik setengah detik lebih lambat</string>
+    <string name="lyrics_timing">Timing</string>
+    <string name="lyrics_timing_moved">Timing %1$s dtk</string>
+    <string name="lyrics_timing_reset">Kembalikan timing</string>
     <string name="download">Download</string>
     <string name="download_remove">Hapus download</string>
     <string name="download_retry">Download lagi</string>
