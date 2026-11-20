@@ -64,6 +64,18 @@ class PlaybackService : MediaSessionService() {
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 if (playWhenReady) (application as HihuApplication).state.playback.connect()
             }
+
+            // A streamed song also holds a Wi-Fi lock, so Wi-Fi does not doze off under it with the
+            // screen off; a downloaded or local song needs no network and leaves Wi-Fi alone.
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val streams = mediaItem != null && (application as HihuApplication).offline.streams(mediaItem)
+                player.setWakeMode(
+                    when (streams) {
+                        true -> C.WAKE_MODE_NETWORK
+                        false -> C.WAKE_MODE_LOCAL
+                    },
+                )
+            }
         })
         session = MediaSession.Builder(this, player)
             .setSessionActivity(open)

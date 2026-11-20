@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
@@ -123,6 +124,15 @@ class Offline(
     }
 
     override fun bytesUsed(): Long = cache.cacheSpace
+
+    /**
+     * Whether [item] comes over the network as it plays: a provider song that is not downloaded.
+     * Read on the main thread, where the download listener keeps [known].
+     */
+    fun streams(item: MediaItem): Boolean {
+        val uri = item.localConfiguration?.uri ?: item.requestMetadata.mediaUri ?: return false
+        return uri.scheme in schemes && known[item.mediaId]?.status != DownloadStatus.Done
+    }
 
     /** Reads the stored downloads once, when the manager is ready. */
     private fun readIndex() {
