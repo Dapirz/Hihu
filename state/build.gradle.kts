@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.daffa.hihu.state"
+    namespace = "app.hihu.state"
     compileSdk = 37
 
     defaultConfig {

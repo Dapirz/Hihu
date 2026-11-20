@@ -21,20 +21,25 @@ Early. What works today:
 - a Home tab with rows made from your own history (keep listening, forgotten favourites,
   similar to the artist you play most) and YouTube Music's home shelves, no account needed
 - an Explore tab like YouTube Music's: moods and genres, new albums and music videos, and
-  what is trending in your country, from YouTube Charts
+  what is trending in your country, from YouTube Music's charts
 - download songs from YouTube Music and play them with no connection; downloads stay inside
   Hihu and are listed in the library and in settings
 - synced lyrics that follow the song; tap a line to jump to it
 - light or dark theme, and three streaming qualities
 - notification, lockscreen and headset controls
 
-Planned: equalizer and volume
-normalisation, more themes, importing YouTube playlists by link, and, in a separate build,
-signing in to YouTube Music for your account's playlists and likes.
+- optionally, sign in to YouTube Music: your account's playlists, albums and artists in the
+  library, Home and Explore as your account sees them, and likes that stay in step with your
+  account's Liked Music
+
+Planned: equalizer and volume normalisation.
 
 ## Privacy
 
-Hihu has no account, analytics or crash reporting. Searching and playing talk to YouTube.
+Hihu has no analytics or crash reporting. Searching and playing talk to YouTube. Signing in
+is optional: it happens on Google's own page, and the session stays on the phone, encrypted
+with the Android Keystore, and goes only to YouTube Music. YouTube does not allow other apps to
+sign in this way, so it could limit the account.
 Opening the lyrics of a song sends its title, artist and length to lrclib.net, and nothing
 else; lyrics are only looked up while they are on screen.
 

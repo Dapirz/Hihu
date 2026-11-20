@@ -56,13 +56,12 @@ views → ui, router
 - `music/youtube` is the only module that knows NewPipeExtractor. Its R8 rules live in
   `app/proguard-rules.pro`; a release build that cannot search usually means a missing keep rule.
 
-## Flavours
+## Signing in
 
-`standard` (package `com.daffa.hihu`) has no account. `google` ("Hihu G", package
-`com.daffa.hihu.g`) signs in to YouTube Music: the user signs in on Google's own page in a web
-view (`SignInScreen`), and the session cookies go to `state.Account`. The flavour difference is
-one function, `accountFor` in `app/src/<flavour>/kotlin/Flavor.kt`; views show account UI only
-when `AppState.account` is not null. Never log the session cookies or the `Authorization` header.
+One app, package `app.hihu`. Signing in to YouTube Music is optional and everything works
+signed out. The user signs in on Google's own page in a web view (`SignInScreen`), and the
+session cookies go to `state.Account`. Every provider call that can use the session checks for
+one and falls back to the anonymous client, so a feature never assumes it is signed in.
 
 ## Rules
 
@@ -84,16 +83,16 @@ when `AppState.account` is not null. Never log the session cookies or the `Autho
 - **Icons are drawables in `ui/src/main/res/drawable`**, exposed through `ui.Icons`.
 - **Keep it light.** No DI framework, no image-loading library, no analytics or crash reporting.
   A new dependency needs a reason that a few lines of code cannot cover.
+- **Never log the session cookies or the `Authorization` header**, nor a stream URL (it carries
+  the phone's IP address).
 - **Do not add tests unless asked.**
 
 ## Building
 
 ```sh
-./gradlew assembleStandardDebug
-./gradlew assembleStandardRelease   # R8-minified, signed with Hihu's release key
-./gradlew assembleGoogleRelease     # Hihu G, with the YouTube Music account
-adb install -r app/build/outputs/apk/standard/release/app-standard-release.apk
-adb install -r app/build/outputs/apk/google/release/app-google-release.apk
+./gradlew assembleDebug
+./gradlew assembleRelease      # R8-minified, signed with Hihu's release key
+adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 Release builds are signed with Hihu's own key, `hihu.p12`, kept outside the repository; its path
@@ -115,8 +114,8 @@ minSdk is 29.
 `versionName` in `app/build.gradle.kts` follows MAJOR.MINOR.PATCH and goes up with every change
 that ships, by how big the change is: a fix or small tweak bumps PATCH (0.1.0 → 0.1.1), a new
 feature bumps MINOR and resets PATCH (0.1.1 → 0.2.0), a change that breaks what users have (data,
-sign-in, a removed feature) bumps MAJOR. `versionCode` goes up by one each time. Both flavours share
-the version. A release on GitHub is tagged `v<versionName>`.
+sign-in, a removed feature) bumps MAJOR. `versionCode` goes up by one each time. A release on
+GitHub is tagged `v<versionName>`.
 
 ## Commits
 

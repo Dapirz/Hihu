@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.daffa.hihu.storage"
+    namespace = "app.hihu.storage"
     compileSdk = 37
 
     defaultConfig {

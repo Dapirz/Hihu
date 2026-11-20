@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">Hihu G</string>
-    <!-- Overrides the views module's title on the Home and Library screens. -->
-    <string name="brand" translatable="false">Hihu G</string>
-</resources>

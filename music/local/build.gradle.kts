@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.daffa.hihu.music.local"
+    namespace = "app.hihu.music.local"
     compileSdk = 37
 
     defaultConfig {
