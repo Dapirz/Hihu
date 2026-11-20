@@ -18,9 +18,12 @@ import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
 import app.hihu.views.R
 
-/** The large accent-coloured title of a tab, with the settings button on the right. */
+/**
+ * The large accent-coloured title of a tab, with the settings button on the right and, when
+ * [onSearch] is given, a search button before it.
+ */
 @Composable
-fun ScreenTitle(text: String, onSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun ScreenTitle(text: String, onSettings: () -> Unit, modifier: Modifier = Modifier, onSearch: (() -> Unit)? = null) {
     val m = HihuTheme.metrics
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -33,6 +36,11 @@ fun ScreenTitle(text: String, onSettings: () -> Unit, modifier: Modifier = Modif
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f),
         )
+        if (onSearch != null) {
+            IconButton(onClick = onSearch) {
+                Icon(painterResource(Icons.search), stringResource(R.string.library_search), Modifier.size(m.iconMd))
+            }
+        }
         IconButton(onClick = onSettings) {
             Icon(painterResource(Icons.settings), stringResource(R.string.settings), Modifier.size(m.iconMd))
         }

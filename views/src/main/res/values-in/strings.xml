@@ -59,6 +59,10 @@
     <string name="search_recent_clear">Hapus semua</string>
     <string name="search_recent_remove">Hapus %1$s</string>
     <string name="search_empty">Tidak ada hasil untuk “%1$s”.</string>
+    <string name="library_search">Cari di library</string>
+    <string name="library_search_hint">Cari di daftar ini</string>
+    <string name="library_search_close">Tutup pencarian</string>
+    <string name="library_search_empty">Tidak ada yang cocok dengan “%1$s”.</string>
     <string name="search_kind">Cari</string>
     <string name="kind_songs">Lagu</string>
     <string name="kind_videos">Video</string>

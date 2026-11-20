@@ -67,16 +67,20 @@ import app.hihu.ui.Icons
 import app.hihu.views.R
 import app.hihu.views.chrome.CommonSongItems
 import app.hihu.views.shared.Artwork
+import app.hihu.views.shared.FilterField
 import app.hihu.views.shared.Message
 import app.hihu.views.shared.ScreenTitle
 import app.hihu.views.shared.SongList
+import app.hihu.views.shared.matching
+import app.hihu.views.shared.matchingSongs
 
 /** The parts of the library, one chip each. */
 enum class LibrarySection { Account, Playlists, Favorites, Downloads, History, Device }
 
 /**
  * The user's own music: playlists, hearted songs, what was played, and the files on the device.
- * A row of chips picks one, and it shows on a rounded sheet under the title.
+ * A row of chips picks one, and it shows on a rounded sheet under the title. The search button
+ * opens a field that narrows whichever part is shown; the text stays when the part changes.
  */
 @Composable
 fun LibraryScreen(
@@ -101,9 +105,30 @@ fun LibraryScreen(
     val m = HihuTheme.metrics
     // The sheet runs behind the floating mini player; only the list leaves room for it.
     val padding = PaddingValues(bottom = contentPadding.calculateBottomPadding())
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenTitle(stringResource(R.string.brand), onSettings = onSettings, modifier = Modifier.padding(top = m.gapLg))
+        ScreenTitle(
+            stringResource(R.string.brand),
+            onSettings = onSettings,
+            modifier = Modifier.padding(top = m.gapLg),
+            onSearch = when (searching) {
+                true -> null
+                false -> ({ searching = true })
+            },
+        )
+        if (searching) {
+            FilterField(
+                text = query,
+                onTextChange = { query = it },
+                onClose = {
+                    searching = false
+                    query = ""
+                },
+                modifier = Modifier.padding(horizontal = m.gapLg, vertical = m.gapSm),
+            )
+        }
         SectionChips(section, onSelect = onSection)
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -111,24 +136,25 @@ fun LibraryScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             when (section) {
-                LibrarySection.Account -> AccountLibrary(account, padding, onOpenCollection, onSignIn)
+                LibrarySection.Account -> AccountLibrary(account, query, padding, onOpenCollection, onSignIn)
                 LibrarySection.Playlists -> {
                     val all by playlists.all.collectAsStateWithLifecycle()
-                    PlaylistList(all, padding, onOpenPlaylist, onNewPlaylist, onImportPlaylist)
+                    val shown = remember(all, query) { all.matching(query) { it.name } }
+                    PlaylistList(shown, query, padding, onOpenPlaylist, onNewPlaylist, onImportPlaylist)
                 }
                 LibrarySection.Favorites -> {
                     val songs by favorites.songs.collectAsStateWithLifecycle()
-                    SavedSongs(songs, stringResource(R.string.favorites_empty), playback, now, padding)
+                    SavedSongs(songs, query, stringResource(R.string.favorites_empty), playback, now, padding)
                 }
                 LibrarySection.Downloads -> {
                     val songs by downloads.songs.collectAsStateWithLifecycle()
-                    SavedSongs(songs, stringResource(R.string.downloads_empty), playback, now, padding)
+                    SavedSongs(songs, query, stringResource(R.string.downloads_empty), playback, now, padding)
                 }
                 LibrarySection.History -> {
                     val songs by history.recent.collectAsStateWithLifecycle()
-                    SavedSongs(songs, stringResource(R.string.history_empty), playback, now, padding)
+                    SavedSongs(songs, query, stringResource(R.string.history_empty), playback, now, padding)
                 }
-                LibrarySection.Device -> DeviceSongs(library, playback, now, padding)
+                LibrarySection.Device -> DeviceSongs(library, query, playback, now, padding)
             }
         }
     }
@@ -163,10 +189,14 @@ private fun SectionChips(selected: LibrarySection, onSelect: (LibrarySection) ->
     }
 }
 
-/** "New playlist" and "Import from YouTube" rows, then every playlist with its cover and song count. */
+/**
+ * "New playlist" and "Import from YouTube" rows, then every playlist with its cover and song count.
+ * [playlists] are the ones that match [query], already narrowed.
+ */
 @Composable
 private fun PlaylistList(
     playlists: List<PlaylistSummary>,
+    query: String,
     padding: PaddingValues,
     onOpen: (Long) -> Unit,
     onNew: () -> Unit,
@@ -179,7 +209,10 @@ private fun PlaylistList(
         if (playlists.isEmpty()) {
             item(key = "empty") {
                 Text(
-                    stringResource(R.string.playlists_empty),
+                    when (query.isBlank()) {
+                        true -> stringResource(R.string.playlists_empty)
+                        false -> stringResource(R.string.library_search_empty, query.trim())
+                    },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = m.gapXl, vertical = m.gapLg),
                 )
@@ -204,10 +237,15 @@ private fun PlaylistList(
     }
 }
 
-/** Favourites or history: a play-all header over the songs, or a hint when there are none. */
+/**
+ * Favourites, downloads or history: a play-all header over the songs that match [query], or a
+ * hint when there are none.
+ */
 @Composable
-private fun SavedSongs(songs: List<Song>, empty: String, playback: Playback, now: NowPlaying, padding: PaddingValues) {
-    if (songs.isEmpty()) return Message(empty)
+private fun SavedSongs(all: List<Song>, query: String, empty: String, playback: Playback, now: NowPlaying, padding: PaddingValues) {
+    val songs = remember(all, query) { all.matchingSongs(query) }
+    if (all.isEmpty()) return Message(empty)
+    if (songs.isEmpty()) return Message(stringResource(R.string.library_search_empty, query.trim()))
     Column {
         SheetHeader(
             label = null,
@@ -231,7 +269,7 @@ private fun SavedSongs(songs: List<Song>, empty: String, playback: Playback, now
  * page in the system settings instead, and the permission is read again on coming back.
  */
 @Composable
-private fun DeviceSongs(library: Library, playback: Playback, now: NowPlaying, padding: PaddingValues) {
+private fun DeviceSongs(library: Library, query: String, playback: Playback, now: NowPlaying, padding: PaddingValues) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val permission = audioPermission()
@@ -248,6 +286,7 @@ private fun DeviceSongs(library: Library, playback: Playback, now: NowPlaying, p
         onPauseOrDispose {}
     }
     val state by library.state.collectAsStateWithLifecycle()
+    val songs = remember(state.songs, query) { state.songs.matchingSongs(query) }
 
     LaunchedEffect(granted) {
         if (granted && !state.loaded && !state.loading) library.refresh()
@@ -266,18 +305,19 @@ private fun DeviceSongs(library: Library, playback: Playback, now: NowPlaying, p
         state.failed -> Message(stringResource(R.string.library_failed), stringResource(R.string.retry), library::refresh)
         state.loaded && state.songs.isEmpty() ->
             Message(stringResource(R.string.library_empty), stringResource(R.string.retry), library::refresh)
+        songs.isEmpty() -> Message(stringResource(R.string.library_search_empty, query.trim()))
         else -> Column {
             SheetHeader(
                 label = stringResource(R.string.sort_name),
-                count = state.songs.size,
-                onShuffle = { playback.playAll(state.songs, shuffle = true) },
-                onPlayAll = { playback.playAll(state.songs, shuffle = false) },
+                count = songs.size,
+                onShuffle = { playback.playAll(songs, shuffle = true) },
+                onPlayAll = { playback.playAll(songs, shuffle = false) },
             )
             SongList(
-                songs = state.songs,
+                songs = songs,
                 playingId = now.songId,
                 padding = padding,
-                onPlay = { index -> playback.play(state.songs, index) },
+                onPlay = { index -> playback.play(songs, index) },
                 menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
             )
         }

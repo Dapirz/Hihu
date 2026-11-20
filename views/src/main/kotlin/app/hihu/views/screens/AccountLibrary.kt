@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -31,6 +32,7 @@ import app.hihu.ui.HihuTheme
 import app.hihu.views.R
 import app.hihu.views.shared.CollectionList
 import app.hihu.views.shared.Message
+import app.hihu.views.shared.matching
 import app.hihu.views.shared.more
 
 /**
@@ -38,22 +40,23 @@ import app.hihu.views.shared.more
  * chip each. Signed out, it offers to sign in instead.
  */
 @Composable
-fun AccountLibrary(account: Account, padding: PaddingValues, onOpen: (Collection) -> Unit, onSignIn: () -> Unit) {
+fun AccountLibrary(account: Account, query: String, padding: PaddingValues, onOpen: (Collection) -> Unit, onSignIn: () -> Unit) {
     val status by account.status.collectAsStateWithLifecycle()
     when (status) {
         AccountStatus.SignedOut -> Message(stringResource(R.string.account_signed_out), stringResource(R.string.account_sign_in), onSignIn)
         AccountStatus.Expired -> Message(stringResource(R.string.account_expired), stringResource(R.string.account_sign_in), onSignIn)
         AccountStatus.Unreachable -> Message(stringResource(R.string.account_unreachable), stringResource(R.string.retry), account::retryCheck)
         AccountStatus.Checking -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
-        is AccountStatus.SignedIn -> SavedCollections(account, padding, onOpen)
+        is AccountStatus.SignedIn -> SavedCollections(account, query, padding, onOpen)
     }
 }
 
 @Composable
-private fun SavedCollections(account: Account, padding: PaddingValues, onOpen: (Collection) -> Unit) {
+private fun SavedCollections(account: Account, query: String, padding: PaddingValues, onOpen: (Collection) -> Unit) {
     val m = HihuTheme.metrics
     var kind by rememberSaveable { mutableStateOf(LibraryKind.Playlists) }
     val paged by account.library(kind).collectAsStateWithLifecycle()
+    val shown = remember(paged.items, query) { paged.items.matching(query) { it.title } }
 
     Column {
         Row(
@@ -81,7 +84,9 @@ private fun SavedCollections(account: Account, padding: PaddingValues, onOpen: (
             paged.loading || !paged.loaded -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
             paged.failed -> Message(stringResource(R.string.account_library_failed), stringResource(R.string.retry)) { account.retry(kind) }
             paged.items.isEmpty() -> Message(stringResource(R.string.account_library_empty))
-            else -> CollectionList(paged.items, padding, onOpen, more = paged.more { account.loadMore(kind) })
+            // Filtered, the rest of the pages still load, so a match further down is found too.
+            shown.isEmpty() && !paged.hasMore -> Message(stringResource(R.string.library_search_empty, query.trim()))
+            else -> CollectionList(shown, padding, onOpen, more = paged.more { account.loadMore(kind) })
         }
     }
 }

@@ -18,6 +18,8 @@ Early. What works today:
 - mini player and full-screen player tinted by the cover, with seek, shuffle and repeat
 - favourites, your own playlists, play history, and a queue you can reorder that is still
   there after the app is closed
+- search within your library: favourites, playlists, downloads, history and the files on
+  your phone, with or without accents
 - a Home tab with rows made from your own history (keep listening, forgotten favourites,
   similar to the artist you play most) and YouTube Music's home shelves, no account needed
 - an Explore tab like YouTube Music's: moods and genres, new albums and music videos, and
