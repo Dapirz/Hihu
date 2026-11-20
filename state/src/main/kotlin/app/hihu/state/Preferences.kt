@@ -41,6 +41,15 @@ class Preferences(context: Context) {
         prefs.edit().putBoolean(KEY_NORMALIZE, value).apply()
     }
 
+    /** Going on with songs like the last one when a queue ends, instead of stopping. Off by default. */
+    private val _autoplay = MutableStateFlow(prefs.getBoolean(KEY_AUTOPLAY, false))
+    val autoplay: StateFlow<Boolean> = _autoplay.asStateFlow()
+
+    fun setAutoplay(value: Boolean) {
+        _autoplay.value = value
+        prefs.edit().putBoolean(KEY_AUTOPLAY, value).apply()
+    }
+
     fun setAppearance(value: Appearance) {
         _appearance.value = value
         prefs.edit().putString(KEY_APPEARANCE, value.name).apply()
@@ -68,6 +77,7 @@ class Preferences(context: Context) {
     private companion object {
         const val FILE = "settings"
         const val KEY_NORMALIZE = "normalize_volume"
+        const val KEY_AUTOPLAY = "autoplay"
         const val KEY_APPEARANCE = "appearance"
         const val KEY_PALETTE = "palette"
         const val KEY_BLACK = "pure_black"

@@ -169,5 +169,7 @@
     <string name="account_library_empty">Nothing here yet.</string>
     <string name="account_likes_note">While you\'re signed in, a heart you give in Hihu is also a like on your account. Likes made in YouTube Music don\'t come into Hihu\'s Favorites.</string>
     <string name="normalize">Even out volume</string>
+    <string name="autoplay">Keep playing</string>
+    <string name="autoplay_detail">When a playlist or album ends, go on with songs like the last one from YouTube Music. Not for files on the phone, or with shuffle or repeat on.</string>
     <string name="normalize_detail">Songs louder than YouTube\'s usual level are turned down, so one song is not much louder than the next. YouTube songs only.</string>
 </resources>

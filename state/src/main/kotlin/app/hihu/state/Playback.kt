@@ -198,11 +198,20 @@ class Playback(
         c.addMediaItems(c.currentMediaItemIndex + 1, songs.map(::toMediaItem))
     }
 
-    /** Adds [songs] to the end of the queue, or starts them when nothing is loaded. */
-    fun enqueue(songs: List<Song>) {
+    /**
+     * Adds [songs] to the end of the queue, or starts them when nothing is loaded. With [resume],
+     * a queue that already played to its end goes on with the first of them.
+     */
+    fun enqueue(songs: List<Song>, resume: Boolean = false) {
         val c = controller ?: return
         if (c.mediaItemCount == 0) return play(songs, 0)
+        val first = c.mediaItemCount
+        val ended = c.playbackState == Player.STATE_ENDED
         c.addMediaItems(songs.map(::toMediaItem))
+        if (resume && ended) {
+            c.seekTo(first, 0)
+            c.play()
+        }
     }
 
     /** Jumps to the song at [index] in [queue] and plays it. */

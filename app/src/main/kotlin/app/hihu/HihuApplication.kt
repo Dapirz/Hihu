@@ -91,7 +91,7 @@ class HihuApplication : Application() {
             favorites = favorites,
             history = history,
             playback = playback,
-            radio = Radio(youtube, playback, scope),
+            radio = Radio(youtube, playback, preferences.autoplay, scope),
             // LRCLIB first, for its synced lines; YouTube Music has plain lyrics for many songs LRCLIB lacks.
             lyrics = SongLyrics(FirstLyrics(listOf(Lrclib(versionName()), youtube)), playback, scope),
             explore = Explore(youtube, youtube, scope),

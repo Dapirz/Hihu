@@ -73,6 +73,7 @@ fun SettingsScreen(preferences: Preferences, downloads: Downloads, account: Acco
     val palette by preferences.palette.collectAsStateWithLifecycle()
     val black by preferences.black.collectAsStateWithLifecycle()
     val normalize by preferences.normalize.collectAsStateWithLifecycle()
+    val autoplay by preferences.autoplay.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = m.gapXs)) {
@@ -141,6 +142,12 @@ fun SettingsScreen(preferences: Preferences, downloads: Downloads, account: Acco
                 detail = R.string.normalize_detail,
                 checked = normalize,
                 onChange = preferences::setNormalize,
+            )
+            Toggle(
+                title = R.string.autoplay,
+                detail = R.string.autoplay_detail,
+                checked = autoplay,
+                onChange = preferences::setAutoplay,
             )
             DownloadsSection(downloads)
         }
