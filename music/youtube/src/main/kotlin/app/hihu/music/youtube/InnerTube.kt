@@ -51,6 +51,14 @@ internal class InnerTube(
     /** POSTs to `next`, the watch page of [videoId], whose tabs lead to its lyrics. */
     fun next(videoId: String): JsonObject = call("next", "") { value("videoId", videoId) }
 
+    /** The play queue of [playlistId], as YouTube Music queues a mix; [continuation] asks for the page after. */
+    fun queue(playlistId: String, continuation: String? = null): JsonObject = call("next", "") {
+        when (continuation) {
+            null -> value("playlistId", playlistId)
+            else -> value("continuation", continuation)
+        }
+    }
+
     private fun call(endpoint: String, query: String, fields: JsonStringWriter.() -> Unit): JsonObject {
         val body = JsonWriter.string().`object`()
             .`object`("context").`object`("client")

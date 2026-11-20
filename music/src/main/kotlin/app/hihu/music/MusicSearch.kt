@@ -36,6 +36,12 @@ interface MusicRadio {
 
     /** The first page of songs similar to [song], without [song] itself. The radio does not end. */
     suspend fun radio(song: Song): Page<Song>
+
+    /** Whether [collection] is a mix, a playlist made for the listener that keeps going as it plays. */
+    fun isMix(collection: Collection): Boolean
+
+    /** The first page of mix [collection] as it is queued to play. Like a radio, it does not end. */
+    suspend fun mix(collection: Collection): Page<Song>
 }
 
 /** Reads the songs inside a [Collection] that the same provider returned. */

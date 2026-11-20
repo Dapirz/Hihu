@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -32,6 +33,7 @@ import app.hihu.music.Song
 import app.hihu.state.NowPlaying
 import app.hihu.state.OpenCollection
 import app.hihu.state.Playback
+import app.hihu.state.Radio
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
 import app.hihu.views.R
@@ -44,12 +46,14 @@ import app.hihu.views.shared.more
 
 /**
  * An album or artist: the cover, title and Play all / Shuffle above its songs, which keep
- * loading as the list is scrolled.
+ * loading as the list is scrolled. A mix plays through [radio], so it keeps going after the
+ * songs shown here.
  */
 @Composable
 fun CollectionScreen(
     open: OpenCollection,
     playback: Playback,
+    radio: Radio,
     now: NowPlaying,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
@@ -57,6 +61,15 @@ fun CollectionScreen(
     val m = HihuTheme.metrics
     val songs by open.songs.collectAsStateWithLifecycle()
     val padding = PaddingValues(bottom = contentPadding.calculateBottomPadding())
+    val mix = remember(open.collection) { radio.isMix(open.collection) }
+    // A null start is Play all, which also turns shuffle off.
+    val play = { list: List<Song>, start: Int?, shuffle: Boolean ->
+        when {
+            mix -> radio.playMix(open.collection, list, start ?: 0, shuffle)
+            shuffle || start == null -> playback.playAll(list, shuffle)
+            else -> playback.play(list, start)
+        }
+    }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = m.gapXs)) {
@@ -66,7 +79,7 @@ fun CollectionScreen(
         }
         when {
             songs.loading -> Column {
-                Header(open, songs = emptyList(), total = null, playback = playback)
+                Header(open, songs = emptyList(), total = null, play = play)
                 Box(Modifier.fillMaxWidth().padding(m.gapXl), Alignment.Center) { CircularProgressIndicator() }
             }
             songs.failed -> Message(stringResource(R.string.collection_failed), stringResource(R.string.retry), open::retry)
@@ -75,9 +88,9 @@ fun CollectionScreen(
                 songs = songs.items,
                 playingId = now.songId,
                 padding = padding,
-                onPlay = { index -> playback.play(songs.items, index) },
+                onPlay = { index -> play(songs.items, index, false) },
                 more = songs.more(open::loadMore),
-                header = { Header(open, songs.items, songs.total, playback) },
+                header = { Header(open, songs.items, songs.total, play) },
                 menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
             )
         }
@@ -85,7 +98,7 @@ fun CollectionScreen(
 }
 
 @Composable
-private fun Header(open: OpenCollection, songs: List<Song>, total: Long?, playback: Playback) {
+private fun Header(open: OpenCollection, songs: List<Song>, total: Long?, play: (List<Song>, Int?, Boolean) -> Unit) {
     val m = HihuTheme.metrics
     // An album's length is only known once its page is open; an artist's count is subscribers.
     val collection = when (open.collection.kind) {
@@ -123,11 +136,11 @@ private fun Header(open: OpenCollection, songs: List<Song>, total: Long?, playba
             horizontalArrangement = Arrangement.spacedBy(m.gapMd),
             modifier = Modifier.padding(top = m.gapLg),
         ) {
-            Button(onClick = { playback.playAll(songs, shuffle = false) }, enabled = songs.isNotEmpty()) {
+            Button(onClick = { play(songs, null, false) }, enabled = songs.isNotEmpty()) {
                 Icon(painterResource(Icons.play), contentDescription = null, Modifier.size(m.iconSm))
                 Text(stringResource(R.string.play_all), Modifier.padding(start = m.gapSm))
             }
-            FilledTonalButton(onClick = { playback.playAll(songs, shuffle = true) }, enabled = songs.isNotEmpty()) {
+            FilledTonalButton(onClick = { play(songs, null, true) }, enabled = songs.isNotEmpty()) {
                 Icon(painterResource(Icons.shuffle), contentDescription = null, Modifier.size(m.iconSm))
                 Text(stringResource(R.string.shuffle), Modifier.padding(start = m.gapSm))
             }

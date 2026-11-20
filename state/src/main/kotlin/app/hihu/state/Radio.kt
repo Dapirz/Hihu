@@ -1,6 +1,7 @@
 package app.hihu.state
 
 import android.util.Log
+import app.hihu.music.Collection
 import app.hihu.music.MusicRadio
 import app.hihu.music.Page
 import app.hihu.music.Song
@@ -27,10 +28,10 @@ class Radio(
     private val autoplay: StateFlow<Boolean>,
     private val scope: CoroutineScope,
 ) {
-    private val _seed = MutableStateFlow<Song?>(null)
+    private val _seed = MutableStateFlow<String?>(null)
 
-    /** The song the radio grew from, while the radio is what is playing; null otherwise. */
-    val seed: StateFlow<Song?> = _seed.asStateFlow()
+    /** The name of what the radio grew from, a song or a mix, while it is what plays; null otherwise. */
+    val seed: StateFlow<String?> = _seed.asStateFlow()
 
     private var job: Job? = null
     private var next: (suspend () -> Page<Song>)? = null
@@ -56,8 +57,28 @@ class Radio(
         playback.play(listOf(song), 0)
         if (!source.hasRadio(song)) return
         generation = playback.generation
-        _seed.value = song
+        _seed.value = song.title
         job = scope.launch { load { source.radio(song) } }
+    }
+
+    fun isMix(collection: Collection): Boolean = source.isMix(collection)
+
+    /**
+     * Plays [songs] of mix [collection] from [start], or all of them in a random order, and then
+     * keeps the queue topped up with the rest of the mix, which does not end. Shuffle mode stays
+     * off, so the songs added at the end play after these.
+     */
+    fun playMix(collection: Collection, songs: List<Song>, start: Int, shuffle: Boolean) {
+        if (songs.isEmpty()) return
+        job?.cancel()
+        next = null
+        when (shuffle) {
+            true -> playback.play(songs.shuffled(), 0, shuffle = false)
+            false -> playback.play(songs, start, shuffle = false)
+        }
+        generation = playback.generation
+        _seed.value = collection.title
+        job = scope.launch { load { source.mix(collection) } }
     }
 
     /** Whether [now] is the last song of a queue that would stop after it. */
@@ -68,7 +89,7 @@ class Radio(
         if (!source.hasRadio(song) || job?.isActive == true) return
         next = null
         generation = playback.generation
-        _seed.value = song
+        _seed.value = song.title
         job = scope.launch { load { source.radio(song) } }
     }
 

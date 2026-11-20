@@ -100,6 +100,25 @@ internal class YouTubeFeed(private val api: InnerTube) {
         return title to songs
     }
 
+    /**
+     * Mix [playlistId] as YouTube Music queues it to play, page by page. A mix made for the
+     * account, like My Supermix, only opens on the signed-in feed.
+     */
+    fun mix(playlistId: String): Page<Song> = queuePage(playlistId, api.queue(playlistId))
+
+    private fun queuePage(playlistId: String, json: JsonObject): Page<Song> {
+        val items = findAll(json, QUEUE_ITEM).mapNotNull { item ->
+            val videoId = item.getString("videoId", null) ?: return@mapNotNull null
+            val title = item.getObject("title").runsText() ?: return@mapNotNull null
+            val length = item.getObject("lengthText").runsText()?.let(::clockMs) ?: 0
+            val artwork = item.getObject("thumbnail").getArray("thumbnails").objects()
+                .maxByOrNull { it.getInt("width", 0) }?.getString("url", null)
+            song(videoId, title, artists(item.getObject("longBylineText")), artwork, length)
+        }
+        val token = findObject(json, "nextRadioContinuationData")?.getString("continuation", null)
+        return Page(items, token?.let { { queuePage(playlistId, api.queue(playlistId, it)) } })
+    }
+
     /** The songs of playlist [id] as the account sees it, so private playlists and liked songs open too. */
     fun playlistSongs(id: String): Page<Song> = songs(api.browse(browseId = "VL$id"))
 
@@ -254,6 +273,7 @@ internal class YouTubeFeed(private val api: InnerTube) {
         const val CHARTS = "FEmusic_charts"
         const val ROW = "musicResponsiveListItemRenderer"
         const val CARD = "musicTwoRowItemRenderer"
+        const val QUEUE_ITEM = "playlistPanelVideoRenderer"
         const val EXPLORE = "FEmusic_explore"
         const val MOOD_PAGE = "FEmusic_moods_and_genres_category"
         const val ALBUM = "MUSIC_PAGE_TYPE_ALBUM"

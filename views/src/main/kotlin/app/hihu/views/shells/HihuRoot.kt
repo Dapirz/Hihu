@@ -268,7 +268,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
                 )
                 is Destination.Collection -> when (val open = app.collections[current.id]) {
                     null -> LaunchedEffect(current) { navigator.pop() }
-                    else -> CollectionScreen(open, app.playback, now, padding, onBack = { navigator.pop() })
+                    else -> CollectionScreen(open, app.playback, app.radio, now, padding, onBack = { navigator.pop() })
                 }
                 is Destination.Playlist -> PlaylistScreen(
                     id = current.id,

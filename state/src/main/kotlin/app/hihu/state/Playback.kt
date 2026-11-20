@@ -173,10 +173,11 @@ class Playback(
     /** Whether [player] is playing or about to, as opposed to paused, stopped or at the end. */
     private fun keepsPlaying(player: Player) = player.playWhenReady && player.playbackState != Player.STATE_ENDED
 
-    /** Replaces the queue with [songs] and starts playing at [start]. */
-    fun play(songs: List<Song>, start: Int) {
+    /** Replaces the queue with [songs] and starts playing at [start], turning shuffle on or off if [shuffle] says. */
+    fun play(songs: List<Song>, start: Int, shuffle: Boolean? = null) {
         val c = controller ?: return
         restoring?.cancel()
+        shuffle?.let { c.shuffleModeEnabled = it }
         generation++
         c.setMediaItems(songs.map(::toMediaItem), start, 0)
         c.prepare()

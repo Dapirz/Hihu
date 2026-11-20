@@ -234,6 +234,21 @@ class YouTubeMusic(
 
     override fun hasRadio(song: Song): Boolean = song.uri.startsWith("$SCHEME://")
 
+    override fun isMix(collection: Collection): Boolean = mixId(collection) != null
+
+    override suspend fun mix(collection: Collection): Page<Song> = io {
+        browsing().mix(mixId(collection) ?: error("youtube: not a mix"))
+    }.onIo()
+
+    /**
+     * The list id of a mix: YouTube's generated playlists start with RD, except the curated
+     * RDCLAK ones, which are ordinary playlists that end.
+     */
+    private fun mixId(collection: Collection): String? = collection.id
+        .takeIf { collection.kind == CollectionKind.Playlist }
+        ?.substringAfter("list=", "")?.substringBefore('&')
+        ?.takeIf { it.startsWith("RD") && !it.startsWith("RDCLAK") }
+
     override suspend fun radio(song: Song): Page<Song> = io {
         // YouTube Music's own radio for a song is the mix whose id is RDAMVM plus the video id.
         val id = song.uri.removePrefix("$SCHEME://")

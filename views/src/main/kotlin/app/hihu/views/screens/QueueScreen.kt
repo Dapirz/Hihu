@@ -50,7 +50,7 @@ fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onClose: () -
                 Text(stringResource(R.string.queue), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 val count = pluralStringResource(R.plurals.library_count, queue.size, queue.size)
                 Text(
-                    seed?.let { stringResource(R.string.radio_from, it.title) + " · " + count } ?: count,
+                    seed?.let { stringResource(R.string.radio_from, it) + " · " + count } ?: count,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
