@@ -126,8 +126,10 @@ class YouTubeMusic(
 
     override val scheme: String = SCHEME
 
+    override fun knows(uri: String): Boolean = uri.startsWith("$SCHEME://")
+
     override fun loudnessDb(uri: String): Double? {
-        if (!uri.startsWith("$SCHEME://")) return null
+        if (!knows(uri)) return null
         return YouTubeLoudness.loudnessDb(uri.removePrefix("$SCHEME://"))
     }
 

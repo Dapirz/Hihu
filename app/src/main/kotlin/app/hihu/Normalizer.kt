@@ -84,9 +84,14 @@ class Normalizer(
         if (next != androidx.media3.common.C.INDEX_UNSET) uriOf(player.getMediaItemAt(next))?.let(::prefetch)
     }
 
-    /** The player volume for [uri]: 1 when off, unknown or not too loud; lower for a loud song. */
+    /**
+     * The player volume for [uri]: 1 when off or not too loud, lower for a loud song. While a
+     * YouTube song's loudness is still on its way the volume stays where it was, since most songs
+     * are mastered about as loud as the one before and jumping to full would blast its start.
+     */
     private fun gain(uri: String?): Float {
-        if (!enabled.value || uri == null || !known.contains(uri)) return FULL
+        if (!enabled.value || uri == null || !source.knows(uri)) return FULL
+        if (!known.contains(uri)) return player?.volume ?: FULL
         val db = known.getFloat(uri, 0f)
         if (db <= 0f) return FULL
         return 10.0.pow(-db / DB_PER_TENFOLD).toFloat().coerceIn(MIN_GAIN, FULL)
