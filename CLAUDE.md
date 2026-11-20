@@ -8,7 +8,8 @@ Media3. GPL-3.0-or-later. The module layout and rules follow Sonora's crate layo
 
 ```
 app/            composition root: Application, MainActivity, PlaybackService (ExoPlayer + MediaSession),
-                Offline (Media3 downloads and the cache the player reads through), HihuDownloadService
+                Offline (Media3 downloads and the cache the player reads through), HihuDownloadService,
+                Normalizer (the player's volume per song, from each song's loudness, kept on the device)
 views/          screens/, shells/ (HihuRoot), chrome/ (mini player), shared/ (Artwork, SongList, Message)
 state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager,
                 SearchHistory, PlaylistImport, Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface),
@@ -24,7 +25,8 @@ music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggesti
                 second signed client for the account's library and its playlists),
                 the trending chart from YouTube Music's own charts page (charts.youtube.com now wants a
                 reCAPTCHA token, which Hihu does not get around), and resolving
-                `hihu-yt://` URIs to audio streams, and opening shared playlist links (PlaylistLinks)
+                `hihu-yt://` URIs to audio streams, opening shared playlist links (PlaylistLinks), and each
+                song's loudness from YouTube's iOS player answer (YouTubeLoudness, SongLoudness)
 router/         Destination (tabs, collections, playlists, queue, settings, player) and the Navigator back stack, pure Kotlin
 storage/        hihu.db on the platform's SQLite: schema and upgrades only; the queries live in state
 ui/             design system: HihuTheme, Metrics, CoverColors, Icons and drawables

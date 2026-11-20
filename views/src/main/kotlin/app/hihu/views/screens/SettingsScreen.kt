@@ -72,6 +72,7 @@ fun SettingsScreen(preferences: Preferences, downloads: Downloads, account: Acco
     val quality by preferences.quality.collectAsStateWithLifecycle()
     val palette by preferences.palette.collectAsStateWithLifecycle()
     val black by preferences.black.collectAsStateWithLifecycle()
+    val normalize by preferences.normalize.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = m.gapXs)) {
@@ -134,6 +135,12 @@ fun SettingsScreen(preferences: Preferences, downloads: Downloads, account: Acco
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = m.gapXl, vertical = m.gapSm),
+            )
+            Toggle(
+                title = R.string.normalize,
+                detail = R.string.normalize_detail,
+                checked = normalize,
+                onChange = preferences::setNormalize,
             )
             DownloadsSection(downloads)
         }

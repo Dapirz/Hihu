@@ -48,6 +48,10 @@ class HihuApplication : Application() {
     lateinit var state: AppState
         private set
 
+    /** Sets the player's volume per song so loud songs are turned down. One per process. */
+    lateinit var normalizer: Normalizer
+        private set
+
     /** Downloads, and the data source the player reads through. One per process. */
     lateinit var offline: Offline
         private set
@@ -61,7 +65,8 @@ class HihuApplication : Application() {
         // Signed in, a heart is also a like on the account, sent by AccountLikes once it exists.
         lateinit var likes: AccountLikes
         val favorites = Favorites(store, scope) { song, liked -> likes.toggled(song, liked) }
-        offline = Offline(this, listOf(youtube))
+        normalizer = Normalizer(this, youtube, preferences.normalize, scope)
+        offline = Offline(this, listOf(youtube), onDownload = normalizer::prefetch)
         val playback = Playback(
             context = this,
             service = ComponentName(this, PlaybackService::class.java),

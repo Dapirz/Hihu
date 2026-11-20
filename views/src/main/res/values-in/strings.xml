@@ -165,4 +165,6 @@
     <string name="account_library_failed">Tidak bisa memuat bagian koleksi ini.</string>
     <string name="account_library_empty">Belum ada apa-apa di sini.</string>
     <string name="account_likes_note">Selama kamu masuk, hati yang kamu beri di Hihu juga jadi suka di akunmu. Suka yang dibuat di YouTube Music tidak masuk ke Favorit Hihu.</string>
+    <string name="normalize">Ratakan volume</string>
+    <string name="normalize_detail">Lagu yang lebih keras dari tingkat biasa YouTube dipelankan, supaya satu lagu tidak jauh lebih keras dari lagu berikutnya. Hanya lagu dari YouTube.</string>
 </resources>

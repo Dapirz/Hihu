@@ -23,6 +23,7 @@ import app.hihu.music.Page
 import app.hihu.music.ResolvedStream
 import app.hihu.music.SearchKind
 import app.hihu.music.SearchResult
+import app.hihu.music.SongLoudness
 import app.hihu.music.Song
 import app.hihu.music.StreamResolver
 import kotlinx.coroutines.Dispatchers
@@ -64,7 +65,7 @@ class YouTubeMusic(
     locale: Locale = Locale.getDefault(),
     /** Read every time a song is resolved, so a changed setting applies to the next song. */
     private val quality: () -> AudioQuality = { AudioQuality.Normal },
-) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, LyricsProvider, MusicAccount, StreamResolver {
+) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, LyricsProvider, MusicAccount, SongLoudness, StreamResolver {
 
     private val service = ServiceList.YouTube
     private val resolved = ConcurrentHashMap<String, Cached>()
@@ -124,6 +125,11 @@ class YouTubeMusic(
     }
 
     override val scheme: String = SCHEME
+
+    override fun loudnessDb(uri: String): Double? {
+        if (!uri.startsWith("$SCHEME://")) return null
+        return YouTubeLoudness.loudnessDb(uri.removePrefix("$SCHEME://"))
+    }
 
     /** YouTube Music's own lyrics, plain text without times; only for songs from YouTube. */
     override suspend fun lyrics(song: Song): Lyrics? {

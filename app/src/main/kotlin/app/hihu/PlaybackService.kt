@@ -21,6 +21,7 @@ import com.google.common.util.concurrent.ListenableFuture
  */
 class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
+    private val normalizer get() = (application as HihuApplication).normalizer
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -52,6 +53,7 @@ class PlaybackService : MediaSessionService() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        normalizer.attach(player)
         session = MediaSession.Builder(this, player)
             .setSessionActivity(open)
             .setCallback(Callback)
@@ -69,6 +71,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        normalizer.detach()
         session?.run {
             player.release()
             release()

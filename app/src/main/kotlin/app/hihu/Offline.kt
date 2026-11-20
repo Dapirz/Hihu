@@ -36,7 +36,12 @@ import java.util.concurrent.Executors
  * can only be opened once.
  */
 @OptIn(UnstableApi::class)
-class Offline(private val context: Context, resolvers: List<StreamResolver>) : DownloadEngine {
+class Offline(
+    private val context: Context,
+    resolvers: List<StreamResolver>,
+    /** Told the URI of each song as its download starts, so its loudness is known offline. */
+    private val onDownload: (String) -> Unit = {},
+) : DownloadEngine {
     private val schemes = resolvers.associateBy { it.scheme }
     private val database = StandaloneDatabaseProvider(context)
     private val cache = SimpleCache(File(context.filesDir, FOLDER), NoOpCacheEvictor(), database)
@@ -98,6 +103,7 @@ class Offline(private val context: Context, resolvers: List<StreamResolver>) : D
             .setCustomCacheKey(song.uri)
             .build()
         DownloadService.sendAddDownload(context, HihuDownloadService::class.java, request, false)
+        onDownload(song.uri)
     }
 
     override fun remove(songId: String) {

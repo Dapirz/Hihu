@@ -32,6 +32,15 @@ class Preferences(context: Context) {
     private val _quality = MutableStateFlow(read(KEY_QUALITY, AudioQuality.Normal))
     val quality: StateFlow<AudioQuality> = _quality.asStateFlow()
 
+    /** Turning songs louder than YouTube's target down, so the volume stays even. */
+    private val _normalize = MutableStateFlow(prefs.getBoolean(KEY_NORMALIZE, true))
+    val normalize: StateFlow<Boolean> = _normalize.asStateFlow()
+
+    fun setNormalize(value: Boolean) {
+        _normalize.value = value
+        prefs.edit().putBoolean(KEY_NORMALIZE, value).apply()
+    }
+
     fun setAppearance(value: Appearance) {
         _appearance.value = value
         prefs.edit().putString(KEY_APPEARANCE, value.name).apply()
@@ -58,6 +67,7 @@ class Preferences(context: Context) {
 
     private companion object {
         const val FILE = "settings"
+        const val KEY_NORMALIZE = "normalize_volume"
         const val KEY_APPEARANCE = "appearance"
         const val KEY_PALETTE = "palette"
         const val KEY_BLACK = "pure_black"
