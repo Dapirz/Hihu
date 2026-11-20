@@ -87,6 +87,19 @@ internal class YouTubeFeed(private val api: InnerTube) {
         return Page(items, nextPage(json, ::collections))
     }
 
+    /**
+     * Playlist [id]'s title (null when the page has none) and its songs, or null when the page
+     * has neither, as for a playlist the account cannot see.
+     */
+    fun playlist(id: String): Pair<String?, Page<Song>>? {
+        val json = api.browse(browseId = "VL$id")
+        val title = (findObject(json, "musicResponsiveHeaderRenderer") ?: findObject(json, "musicDetailHeaderRenderer"))
+            ?.getObject("title")?.runsText()
+        val songs = songs(json)
+        if (title == null && songs.items.isEmpty()) return null
+        return title to songs
+    }
+
     /** The songs of playlist [id] as the account sees it, so private playlists and liked songs open too. */
     fun playlistSongs(id: String): Page<Song> = songs(api.browse(browseId = "VL$id"))
 

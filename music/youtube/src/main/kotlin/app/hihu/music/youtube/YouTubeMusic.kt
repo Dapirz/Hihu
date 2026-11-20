@@ -187,6 +187,14 @@ class YouTubeMusic(
         val handlers = YoutubePlaylistLinkHandlerFactory.getInstance()
         // Links from the share sheet carry tracking (`si=`) and may point at a video in the list.
         val url = runCatching { handlers.fromUrl(link).url }.getOrNull() ?: return@io null
+        // Signed in, read it as the account sees it, so the user's own private playlists import too.
+        if (session != null) {
+            val list = url.substringAfter("list=", "").substringBefore('&')
+            account.playlist(list)?.let { (title, songs) ->
+                val collection = Collection(url, CollectionKind.Playlist, title.orEmpty(), null, songs.items.firstOrNull()?.artworkUri)
+                return@io LinkedPlaylist(collection, songs.onIo())
+            }
+        }
         val info = try {
             PlaylistInfo.getInfo(service, url)
         } catch (e: ContentNotAvailableException) {

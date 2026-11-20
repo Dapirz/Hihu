@@ -38,6 +38,15 @@ class Collections(private val source: MusicBrowse, private val scope: CoroutineS
         }
     }
 
+    /**
+     * Forgets every collection, after signing in or out: an account's private playlist must not
+     * stay open, and a public one now loads as the new session sees it. A screen showing one goes back.
+     */
+    fun clear() {
+        open.clear()
+        known.clear()
+    }
+
     /** The collection under [id], reopened if it was dropped, or null if it was never opened. */
     operator fun get(id: String): OpenCollection? = open[id] ?: known[id]?.let(::open)
 

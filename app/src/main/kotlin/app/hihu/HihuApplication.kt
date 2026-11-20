@@ -96,10 +96,14 @@ class HihuApplication : Application() {
         followAccount(account)
     }
 
-    /** Reloads home and explore when the account signs in or out, since both follow it. */
+    /**
+     * Reloads home and explore when the account signs in or out, since both follow it, and drops
+     * the open albums and playlists, which may be the account's private ones.
+     */
     private fun followAccount(account: Account) {
         scope.launch {
             account.status.map { it is AccountStatus.SignedIn }.distinctUntilChanged().drop(1).collect {
+                state.collections.clear()
                 state.home.refresh()
                 state.explore.refresh()
             }
