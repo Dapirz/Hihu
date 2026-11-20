@@ -18,3 +18,7 @@ references/ui/*.jpg
 references/ui/*.jpeg
 references/ui/*.png
 references/ui/*.webp
+
+# The editor's own files and the Java language server's build output.
+.vscode/
+bin/
