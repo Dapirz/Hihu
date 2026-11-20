@@ -7,6 +7,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -38,11 +39,14 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
         // Hand decoding to the audio DSP when the device supports it, so the CPU can sleep while
-        // the screen is off. ExoPlayer falls back to normal playback when it cannot.
+        // the screen is off. ExoPlayer falls back to normal playback when it cannot. Only where
+        // the DSP also handles one song running straight into the next, so no device that lacks
+        // it changes songs in the middle of the audio it was handed.
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
             .setAudioOffloadPreferences(
                 AudioOffloadPreferences.Builder()
                     .setAudioOffloadMode(AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
+                    .setIsGaplessSupportRequired(true)
                     .build(),
             )
             .build()
@@ -54,6 +58,13 @@ class PlaybackService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         normalizer.attach(player)
+        // Playing started from the notification, a headset or Bluetooth while the app was closed:
+        // state.Playback binds again, so the radio and the history follow it.
+        player.addListener(object : Player.Listener {
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (playWhenReady) (application as HihuApplication).state.playback.connect()
+            }
+        })
         session = MediaSession.Builder(this, player)
             .setSessionActivity(open)
             .setCallback(Callback)

@@ -8,8 +8,8 @@ import androidx.activity.enableEdgeToEdge
 import app.hihu.views.shells.HihuRoot
 
 /**
- * The single activity. It only binds playback while visible, hands the state to the views, and
- * passes on playlist links shared to Hihu.
+ * The single activity. It tells playback when it shows and hides, hands the state to the views,
+ * and passes on playlist links shared to Hihu.
  */
 class MainActivity : ComponentActivity() {
     private val app get() = (application as HihuApplication).state
@@ -35,11 +35,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        app.playback.connect()
+        app.playback.setVisible(true)
     }
 
     override fun onStop() {
-        app.playback.disconnect()
+        app.playback.setVisible(false)
         super.onStop()
     }
 }

@@ -46,7 +46,9 @@ enum class Repeat { Off, All, One }
 /**
  * The one way the UI drives playback. It talks to the playback service through a
  * [MediaController], so views never touch the player, and the service keeps playing after the
- * activity goes away. Call [connect] when the UI starts and [disconnect] when it stops.
+ * activity goes away. Tell it when the UI shows and hides with [setVisible]. The binding is
+ * kept while something plays even with the UI hidden, so the radio keeps filling the queue and
+ * the history keeps every song; the service calls [connect] when playback starts without it.
  *
  * The queue is saved through [saved] whenever it changes, and put back when the app starts with
  * nothing loaded. [onSongStarted] hears about every song that begins, for the history.
@@ -72,6 +74,7 @@ class Playback(
     private var saving: Job? = null
     private var restoring: Job? = null
     private var lastStarted: String? = null
+    private var visible = false
 
     /** Counts the times the queue was replaced, so a radio can tell when it is no longer playing. */
     var generation: Int = 0
@@ -87,18 +90,59 @@ class Playback(
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) || events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
                 savePosition()
             }
+            if (events.contains(Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED) || events.contains(Player.EVENT_REPEAT_MODE_CHANGED)) {
+                saveModes()
+            }
+            // Released from outside the listener, since the controller is still calling it.
+            if (!visible && !keepsPlaying(player)) context.mainExecutor.execute(::releaseIfIdle)
+        }
+    }
+
+    private val connection = object : MediaController.Listener {
+        override fun onDisconnected(controller: MediaController) {
+            if (controller !== this@Playback.controller) return
+            forget()
+            if (visible) connect()
+        }
+    }
+
+    /** Tells whether the UI is on screen. The service stays bound while it is and while something plays. */
+    fun setVisible(shown: Boolean) {
+        visible = shown
+        when (shown) {
+            true -> {
+                connect()
+                sync()
+            }
+            false -> {
+                ticker?.cancel()
+                ticker = null
+                releaseIfIdle()
+            }
         }
     }
 
     /** Binds to the playback service. Safe to call more than once. */
     fun connect() {
         if (pending != null) return
-        val future = MediaController.Builder(context, SessionToken(context, service)).buildAsync()
+        val future = MediaController.Builder(context, SessionToken(context, service))
+            .setListener(connection)
+            .buildAsync()
         pending = future
         future.addListener({
             val built = runCatching { future.get() }
                 .onFailure { Log.w(TAG, "playback: cannot connect to service", it) }
-                .getOrNull() ?: return@addListener
+                .getOrNull()
+            if (built == null) {
+                // Cleared so the next call tries again.
+                if (pending === future) pending = null
+                return@addListener
+            }
+            if (pending !== future) {
+                // Released while it was connecting.
+                built.release()
+                return@addListener
+            }
             controller = built
             built.addListener(listener)
             readQueue()
@@ -107,17 +151,27 @@ class Playback(
         }, context.mainExecutor)
     }
 
-    /** Releases the binding. Playback keeps going in the service if it was playing. */
-    fun disconnect() {
+    /** Releases the binding once the UI is hidden and nothing is playing any more. */
+    private fun releaseIfIdle() {
+        if (visible) return
+        val c = controller
+        if (c != null && keepsPlaying(c)) return
         savePosition()
+        restoring?.cancel()
+        c?.removeListener(listener)
+        pending?.let(MediaController::releaseFuture)
+        forget()
+    }
+
+    private fun forget() {
         ticker?.cancel()
         ticker = null
-        restoring?.cancel()
-        controller?.removeListener(listener)
-        pending?.let(MediaController::releaseFuture)
         pending = null
         controller = null
     }
+
+    /** Whether [player] is playing or about to, as opposed to paused, stopped or at the end. */
+    private fun keepsPlaying(player: Player) = player.playWhenReady && player.playbackState != Player.STATE_ENDED
 
     /** Replaces the queue with [songs] and starts playing at [start]. */
     fun play(songs: List<Song>, start: Int) {
@@ -156,6 +210,7 @@ class Playback(
         val c = controller ?: return
         if (index !in 0 until c.mediaItemCount) return
         c.seekTo(index, 0)
+        if (c.playbackState == Player.STATE_IDLE) c.prepare()
         c.play()
     }
 
@@ -186,7 +241,10 @@ class Playback(
 
     fun toggle() {
         val c = controller ?: return
-        if (c.isPlaying) c.pause() else c.play()
+        if (c.isPlaying) return c.pause()
+        // A restored queue is not prepared until it is played, so opening the app costs no data.
+        if (c.playbackState == Player.STATE_IDLE) c.prepare()
+        c.play()
     }
 
     fun next() = controller?.seekToNextMediaItem() ?: Unit
@@ -195,7 +253,7 @@ class Playback(
 
     fun seekTo(positionMs: Long) = controller?.seekTo(positionMs) ?: Unit
 
-    /** Copies the controller into [state], and keeps the position ticking while playing. */
+    /** Copies the controller into [state], and keeps the position ticking while playing on screen. */
     private fun sync() {
         val c = controller ?: return
         val song = c.currentMediaItem?.let(::toSong)
@@ -208,17 +266,13 @@ class Playback(
             hasPrevious = song != null,
             hasNext = c.hasNextMediaItem(),
             shuffle = c.shuffleModeEnabled,
-            repeat = when (c.repeatMode) {
-                Player.REPEAT_MODE_ALL -> Repeat.All
-                Player.REPEAT_MODE_ONE -> Repeat.One
-                else -> Repeat.Off
-            },
+            repeat = repeatOf(c.repeatMode),
         )
         if (c.isPlaying && song != null && song.id != lastStarted) {
             lastStarted = song.id
             onSongStarted(song)
         }
-        when (c.isPlaying) {
+        when (c.isPlaying && visible) {
             true -> if (ticker?.isActive != true) ticker = scope.launch { tick() }
             false -> {
                 ticker?.cancel()
@@ -235,7 +289,7 @@ class Playback(
     /** Saves the queue a moment after it stops changing, so a burst of edits is one write. */
     private fun saveQueue() {
         val c = controller ?: return
-        val snapshot = QueueSnapshot(_queue.value, c.currentMediaItemIndex, c.currentPosition)
+        val snapshot = QueueSnapshot(_queue.value, c.currentMediaItemIndex, c.currentPosition, c.shuffleModeEnabled, repeatOf(c.repeatMode))
         saving?.cancel()
         saving = scope.launch {
             delay(SAVE_DELAY_MS)
@@ -259,14 +313,31 @@ class Playback(
         }
     }
 
-    /** Loads the saved queue into the player, paused where it was left. */
+    private fun saveModes() {
+        val c = controller ?: return
+        val shuffle = c.shuffleModeEnabled
+        val repeat = repeatOf(c.repeatMode)
+        scope.launch {
+            runCatching { saved.saveModes(shuffle, repeat) }.onFailure { Log.w(TAG, "playback: cannot save shuffle and repeat", it) }
+        }
+    }
+
+    /**
+     * Loads the saved queue into the player, paused where it was left, with its shuffle and repeat.
+     * It is prepared only when played, so nothing is fetched until then.
+     */
     private fun restore() {
         restoring = scope.launch {
             val snapshot = runCatching { saved.load() }.getOrNull() ?: return@launch
             val c = controller ?: return@launch
             if (c.mediaItemCount != 0) return@launch
+            c.shuffleModeEnabled = snapshot.shuffle
+            c.repeatMode = when (snapshot.repeat) {
+                Repeat.Off -> Player.REPEAT_MODE_OFF
+                Repeat.All -> Player.REPEAT_MODE_ALL
+                Repeat.One -> Player.REPEAT_MODE_ONE
+            }
             c.setMediaItems(snapshot.songs.map(::toMediaItem), snapshot.index, snapshot.positionMs)
-            c.prepare()
         }
     }
 
@@ -290,6 +361,12 @@ class Playback(
  * song's cover URI is the audio file itself, which the notification cannot decode as an image;
  * the notification uses the artwork embedded in the file instead.
  */
+private fun repeatOf(mode: Int): Repeat = when (mode) {
+    Player.REPEAT_MODE_ALL -> Repeat.All
+    Player.REPEAT_MODE_ONE -> Repeat.One
+    else -> Repeat.Off
+}
+
 private const val EXTRA_ARTWORK = "hihu.artwork"
 private const val EXTRA_DURATION = "hihu.duration"
 

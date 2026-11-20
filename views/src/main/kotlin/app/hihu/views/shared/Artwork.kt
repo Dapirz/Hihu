@@ -35,8 +35,12 @@ import app.hihu.ui.CoverColors
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
 import app.hihu.ui.dominantColor
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
 
 /**
  * A square cover for [uri], or a music-note placeholder while it loads or when the file has
@@ -93,7 +97,9 @@ fun rememberCoverColors(uri: String?): CoverColors {
 
 /**
  * The process-wide cover cache, bounded by bytes so a long scroll of search results cannot grow
- * it without limit. A miss is remembered too, so files without art are not re-read.
+ * it without limit. A miss is remembered too, so files without art are not re-read, but an image
+ * URL that could not be fetched is tried again next time, since that is usually the network.
+ * Used from the main thread only; one cover asked for by several rows at once is fetched once.
  */
 private object Covers {
     private const val MAX_BYTES = 16 * 1024 * 1024
@@ -105,6 +111,8 @@ private object Covers {
     }
     private val colors = LruCache<String, Tint>(MAX_COLORS)
 
+    private val loading = HashMap<String, CompletableDeferred<Bitmap?>>()
+
     private class Entry(val bitmap: Bitmap?)
     private class Tint(val argb: Int?)
 
@@ -113,24 +121,37 @@ private object Covers {
     fun cachedColor(uri: String): Int? = colors.get(uri)?.argb
 
     suspend fun load(context: Context, uri: String, px: Int): Bitmap? {
-        bitmaps.get(key(uri, px))?.let { return it.bitmap }
-        val bitmap = withContext(Dispatchers.IO) {
-            runCatching {
-                when (uri.startsWith("http")) {
-                    true -> download(uri, px)
-                    false -> context.contentResolver.loadThumbnail(Uri.parse(uri), Size(px, px), null)
+        val key = key(uri, px)
+        bitmaps.get(key)?.let { return it.bitmap }
+        loading[key]?.let { return it.await() }
+        val task = CompletableDeferred<Bitmap?>()
+        loading[key] = task
+        try {
+            val remote = uri.startsWith("http")
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    when (remote) {
+                        true -> download(uri, px)
+                        false -> context.contentResolver.loadThumbnail(Uri.parse(uri), Size(px, px), null)
+                    }
                 }
-            }.getOrNull()
+            }
+            if (result.isSuccess || !remote) bitmaps.put(key, Entry(result.getOrNull()))
+            task.complete(result.getOrNull())
+            return result.getOrNull()
+        } finally {
+            loading.remove(key)
+            // A cancelled load leaves the others waiting on it with nothing, to try again later.
+            task.complete(null)
         }
-        bitmaps.put(key(uri, px), Entry(bitmap))
-        return bitmap
     }
 
     suspend fun color(context: Context, uri: String): Int? {
         colors.get(uri)?.let { return it.argb }
         val bitmap = load(context, uri, COLOR_PX)
         val argb = bitmap?.let { withContext(Dispatchers.Default) { dominantColor(it) } }
-        colors.put(uri, Tint(argb))
+        // Not kept when the cover could not be fetched, so the colour comes once it can be.
+        if (bitmaps.get(key(uri, COLOR_PX)) != null) colors.put(uri, Tint(argb))
         return argb
     }
 
@@ -142,7 +163,7 @@ private object Covers {
         val bytes = try {
             connection.connectTimeout = TIMEOUT_MS
             connection.readTimeout = TIMEOUT_MS
-            connection.inputStream.use { it.readBytes() }
+            connection.inputStream.use(::readCapped)
         } finally {
             connection.disconnect()
         }
@@ -159,5 +180,19 @@ private object Covers {
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
     }
 
+    /** Reads [input] whole, refusing anything larger than a cover could reasonably be. */
+    private fun readCapped(input: InputStream): ByteArray {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(BUFFER_BYTES)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) return out.toByteArray()
+            out.write(buffer, 0, read)
+            if (out.size() > MAX_IMAGE_BYTES) throw IOException("cover: image too large")
+        }
+    }
+
     private const val TIMEOUT_MS = 15_000
+    private const val BUFFER_BYTES = 16 * 1024
+    private const val MAX_IMAGE_BYTES = 8 * 1024 * 1024
 }

@@ -3,6 +3,7 @@ package app.hihu
 import android.app.Application
 import android.content.ComponentName
 import android.telephony.TelephonyManager
+import android.util.Log
 import java.util.Locale
 import app.hihu.music.local.MediaStoreLibrary
 import app.hihu.music.youtube.YouTubeMusic
@@ -32,7 +33,9 @@ import app.hihu.views.shells.AppState
 import app.hihu.state.Account
 import app.hihu.state.AccountLikes
 import app.hihu.state.AccountStatus
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -43,7 +46,8 @@ import kotlinx.coroutines.launch
  * sees the interfaces in the music module. State lives here so it outlives the activity.
  */
 class HihuApplication : Application() {
-    private val scope = MainScope()
+    // Background work that fails where nothing catches it is logged, not a crash of the whole app.
+    private val scope = MainScope() + CoroutineExceptionHandler { _, e -> Log.e(TAG, "app: background work failed", e) }
 
     lateinit var state: AppState
         private set
@@ -89,7 +93,7 @@ class HihuApplication : Application() {
             playback = playback,
             radio = Radio(youtube, playback, scope),
             // LRCLIB first, for its synced lines; YouTube Music has plain lyrics for many songs LRCLIB lacks.
-            lyrics = SongLyrics(FirstLyrics(listOf(Lrclib(), youtube)), playback, scope),
+            lyrics = SongLyrics(FirstLyrics(listOf(Lrclib(versionName()), youtube)), playback, scope),
             explore = Explore(youtube, youtube, scope),
             home = Home(youtube, youtube, history, favorites, scope),
             moods = Moods(youtube, scope),
@@ -115,6 +119,9 @@ class HihuApplication : Application() {
         }
     }
 
+    private fun versionName(): String =
+        runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "0"
+
     /**
      * The language of the phone, with the country of the SIM, then of the network, then of the
      * time zone, then of the phone's own setting. A phone set to English in Indonesia should
@@ -133,6 +140,8 @@ class HihuApplication : Application() {
     }
 
     private companion object {
+        const val TAG = "Hihu"
+
         /** What ICU answers for a time zone that belongs to no country, like UTC. */
         const val NO_REGION = "001"
     }

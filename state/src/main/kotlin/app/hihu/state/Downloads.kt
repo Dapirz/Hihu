@@ -55,9 +55,11 @@ class Downloads(private val engine: DownloadEngine, private val store: Store, pr
 
     fun supports(song: Song) = engine.supports(song)
 
-    /** Downloads the songs that can be, skipping the ones already saved. */
+    /** Downloads the songs that can be, skipping the ones already saved; a failed one starts again. */
     fun download(songs: List<Song>) {
-        val fresh = songs.filter { engine.supports(it) && it.id !in _songs.value.map(Song::id) }
+        val saved = _songs.value.mapTo(HashSet(), Song::id)
+        val failed = engine.progress.value.filterValues { it.status == DownloadStatus.Failed }.keys
+        val fresh = songs.filter { engine.supports(it) && (it.id !in saved || it.id in failed) }
         if (fresh.isEmpty()) return
         scope.launch {
             store.transaction { db ->

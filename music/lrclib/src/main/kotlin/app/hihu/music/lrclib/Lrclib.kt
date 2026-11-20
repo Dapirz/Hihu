@@ -17,9 +17,11 @@ import kotlin.math.abs
 /**
  * Lyrics from LRCLIB (lrclib.net), a free and open lyrics database that needs no account.
  * Only the title, artist and length of the song are sent. YouTube titles are cleaned first, so
- * "Faint (Official Music Video)" is looked up as "Faint".
+ * "Faint (Official Music Video)" is looked up as "Faint". [version] is Hihu's, for the user agent.
  */
-class Lrclib : LyricsProvider {
+class Lrclib(version: String) : LyricsProvider {
+    // LRCLIB asks clients to name themselves; this names the app and nothing about the user.
+    private val userAgent = "Hihu/$version"
 
     override suspend fun lyrics(song: Song): Lyrics? = withContext(Dispatchers.IO) {
         val (title, artist) = clean(song)
@@ -77,7 +79,7 @@ class Lrclib : LyricsProvider {
         try {
             connection.connectTimeout = TIMEOUT_MS
             connection.readTimeout = TIMEOUT_MS
-            connection.setRequestProperty("User-Agent", USER_AGENT)
+            connection.setRequestProperty("User-Agent", userAgent)
             return when (val code = connection.responseCode) {
                 HttpURLConnection.HTTP_OK -> connection.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
                 HttpURLConnection.HTTP_NOT_FOUND -> null
@@ -91,8 +93,6 @@ class Lrclib : LyricsProvider {
     private companion object {
         const val BASE = "https://lrclib.net"
         const val SOURCE = "LRCLIB"
-        // LRCLIB asks clients to name themselves; this names the app and nothing about the user.
-        const val USER_AGENT = "Hihu/0.1.0"
         const val TIMEOUT_MS = 10_000
         // A music video can run a minute longer than the track; its words are still the track's.
         const val MAX_LENGTH_GAP_S = 60

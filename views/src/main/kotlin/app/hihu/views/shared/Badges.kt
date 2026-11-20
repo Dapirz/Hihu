@@ -8,6 +8,9 @@ sealed interface RowBadge {
 
     /** Downloading; [percent] runs from 0 to 100. */
     data class Downloading(val percent: Int) : RowBadge
+
+    /** The download stopped with an error; the song's menu offers to try again. */
+    data object Failed : RowBadge
 }
 
 /**

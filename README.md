@@ -1,6 +1,6 @@
 # Hihu
 
-A light music player for Android: your local files now, YouTube Music next.
+A light music player for Android, for YouTube Music and the music files on your phone.
 
 Built with Kotlin, Jetpack Compose and Media3. Material 3 colours follow your wallpaper.
 Decoding is handed to the audio DSP when the phone supports it, so playback with the screen
@@ -24,7 +24,9 @@ Early. What works today:
   what is trending in your country, from YouTube Music's charts
 - download songs from YouTube Music and play them with no connection; downloads stay inside
   Hihu and are listed in the library and in settings
-- synced lyrics that follow the song; tap a line to jump to it
+- synced lyrics that follow the song, from LRCLIB; tap a line to jump to it. When LRCLIB has
+  none, the plain lyrics from YouTube Music
+- even out volume: songs mastered louder than YouTube's usual level are turned down
 - light or dark theme, and three streaming qualities
 - notification, lockscreen and headset controls
 
@@ -32,7 +34,7 @@ Early. What works today:
   library, Home and Explore as your account sees them, and hearts that are also liked on your
   account (likes made elsewhere stay out of Hihu's favourites)
 
-Planned: equalizer and volume normalisation.
+Planned: equalizer.
 
 ## Privacy
 
@@ -41,7 +43,8 @@ is optional: it happens on Google's own page, and the session stays on the phone
 with the Android Keystore, and goes only to YouTube Music. YouTube does not allow other apps to
 sign in this way, so it could limit the account.
 Opening the lyrics of a song sends its title, artist and length to lrclib.net, and nothing
-else; lyrics are only looked up while they are on screen.
+else, and asks YouTube Music when LRCLIB has none; lyrics are only looked up while they are
+on screen.
 
 ## Build
 

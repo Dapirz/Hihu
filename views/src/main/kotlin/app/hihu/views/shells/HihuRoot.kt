@@ -149,7 +149,7 @@ fun HihuRoot(app: AppState) {
             when (p.status) {
                 DownloadStatus.Done -> id to RowBadge.Downloaded
                 DownloadStatus.Downloading, DownloadStatus.Queued -> id to RowBadge.Downloading(p.percent.toInt())
-                DownloadStatus.Failed -> null
+                DownloadStatus.Failed -> id to RowBadge.Failed
             }
         }.toMap()
     }

@@ -221,6 +221,12 @@ fun SongRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = m.gapSm),
             )
+            RowBadge.Failed -> Text(
+                stringResource(R.string.download_failed),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = m.gapSm),
+            )
             null -> Unit
         }
         if (playing) {

@@ -9,6 +9,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.music.Song
+import app.hihu.state.DownloadStatus
 import app.hihu.state.Downloads
 import app.hihu.state.Favorites
 import app.hihu.state.Playback
@@ -52,6 +53,12 @@ fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
     }
     if (actions.downloads.supports(song)) {
         val downloaded by actions.downloads.progress.collectAsStateWithLifecycle()
+        if (downloaded[song.id]?.status == DownloadStatus.Failed) {
+            MenuItem(R.string.download_retry) {
+                actions.download(listOf(song))
+                dismiss()
+            }
+        }
         when (song.id in downloaded) {
             true -> MenuItem(R.string.download_remove) {
                 actions.downloads.remove(song)

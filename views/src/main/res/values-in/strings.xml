@@ -1,5 +1,4 @@
 <resources>
-    <string name="library_title">Pustaka</string>
     <string name="library_permission">Hihu butuh izin buat baca musik di perangkat ini.</string>
     <string name="library_allow">Izinkan</string>
     <string name="library_empty">Belum ada lagu di perangkat ini.</string>
@@ -22,7 +21,6 @@
     <string name="repeat_one">Ulangi satu</string>
     <string name="playing_now">Sedang diputar</string>
     <string name="close_player">Tutup pemutar</string>
-    <string name="now_playing">Sedang diputar</string>
     <string name="open_player">Buka pemutar</string>
     <string name="seek">Posisi lagu</string>
     <string name="tab_home">Beranda</string>
@@ -36,7 +34,6 @@
     <string name="trending_in">Lagi tren di %1$s</string>
     <string name="trending_source">YouTube Charts, diperbarui tiap hari</string>
     <string name="explore_failed">Gagal memuat chart. Periksa koneksi.</string>
-    <string name="explore_empty">Chart-nya lagi kosong.</string>
     <string name="tab_library">Pustaka</string>
     <string name="search_hint">Lagu, artis</string>
     <string name="search_idle">Cari lagu atau artis di YouTube Music.</string>
@@ -60,14 +57,13 @@
     <string name="import_network">Tidak bisa membaca playlist. Periksa koneksi lalu coba lagi.</string>
     <string name="search_recent">Pencarian terakhir</string>
     <string name="search_recent_clear">Hapus semua</string>
-    <string name="search_recent_remove">Hapus</string>
+    <string name="search_recent_remove">Hapus %1$s</string>
     <string name="search_empty">Tidak ada hasil untuk “%1$s”.</string>
     <string name="search_kind">Cari</string>
     <string name="kind_songs">Lagu</string>
     <string name="kind_videos">Video</string>
     <string name="kind_albums">Album</string>
     <string name="kind_artists">Artis</string>
-    <string name="suggestion_fill">Pakai saran</string>
     <string name="back">Kembali</string>
     <string name="settings">Pengaturan</string>
     <string name="settings_theme">Tema</string>
@@ -117,6 +113,8 @@
     <string name="lyrics_source">Lirik dari %1$s</string>
     <string name="download">Download</string>
     <string name="download_remove">Hapus download</string>
+    <string name="download_retry">Download lagi</string>
+    <string name="download_failed">Gagal</string>
     <string name="download_all">Download semua</string>
     <string name="downloaded">Sudah di-download</string>
     <string name="download_percent">%1$d%%</string>

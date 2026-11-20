@@ -301,8 +301,24 @@ class YouTubeMusic(
         extractor.fetchPage()
         val name = artist.lowercase(Locale.ROOT)
         return page(extractor.initialPage, { io { extractor.getPage(it) } }) { item ->
-            (item as? StreamInfoItem)?.let(::toSong)?.takeIf { name in it.artist.orEmpty().lowercase(Locale.ROOT) }
+            (item as? StreamInfoItem)?.let(::toSong)?.takeIf { credits(it.artist.orEmpty().lowercase(Locale.ROOT), name) }
         }
+    }
+
+    /**
+     * Whether [name] appears in [artists] as a whole name, as in "Queen & David Bowie", and not
+     * as the start of another one, as in "Queens of the Stone Age".
+     */
+    private fun credits(artists: String, name: String): Boolean {
+        var from = artists.indexOf(name)
+        while (from >= 0) {
+            val end = from + name.length
+            val before = artists.getOrNull(from - 1)
+            val after = artists.getOrNull(end)
+            if (before?.isLetterOrDigit() != true && after?.isLetterOrDigit() != true) return true
+            from = artists.indexOf(name, from + 1)
+        }
+        return false
     }
 
     private fun toResult(item: InfoItem): SearchResult? = when (item) {

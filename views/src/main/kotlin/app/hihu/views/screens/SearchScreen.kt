@@ -233,7 +233,6 @@ private fun Recent(
     onClear: () -> Unit,
 ) {
     val m = HihuTheme.metrics
-    val remove = stringResource(R.string.search_recent_remove)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
         item(key = "header") {
             Row(
@@ -273,7 +272,7 @@ private fun Recent(
                 IconButton(onClick = { onRemove(query) }) {
                     Icon(
                         painterResource(Icons.close),
-                        contentDescription = "$remove $query",
+                        contentDescription = stringResource(R.string.search_recent_remove, query),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(m.iconSm),
                     )

@@ -1,7 +1,11 @@
 package app.hihu.views.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.LocalActivity
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -38,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -220,15 +225,28 @@ private fun SavedSongs(songs: List<Song>, empty: String, playback: Playback, now
     }
 }
 
-/** The music files on the device. Asks for the audio permission first, then reads them once. */
+/**
+ * The music files on the device. Asks for the audio permission first, then reads them once. Once
+ * Android stops showing the request, after it was turned down for good, the button opens Hihu's
+ * page in the system settings instead, and the permission is read again on coming back.
+ */
 @Composable
 private fun DeviceSongs(library: Library, playback: Playback, now: NowPlaying, padding: PaddingValues) {
     val context = LocalContext.current
+    val activity = LocalActivity.current
     val permission = audioPermission()
     var granted by remember {
         mutableStateOf(context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED)
     }
-    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
+    var blocked by rememberSaveable { mutableStateOf(false) }
+    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
+        granted = allowed
+        blocked = !allowed && activity?.shouldShowRequestPermissionRationale(permission) == false
+    }
+    LifecycleResumeEffect(permission) {
+        granted = context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+        onPauseOrDispose {}
+    }
     val state by library.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(granted) {
@@ -237,7 +255,12 @@ private fun DeviceSongs(library: Library, playback: Playback, now: NowPlaying, p
 
     when {
         !granted -> Message(stringResource(R.string.library_permission), stringResource(R.string.library_allow)) {
-            request.launch(permission)
+            when (blocked) {
+                true -> context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                )
+                false -> request.launch(permission)
+            }
         }
         state.loading && state.songs.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
         state.failed -> Message(stringResource(R.string.library_failed), stringResource(R.string.retry), library::refresh)

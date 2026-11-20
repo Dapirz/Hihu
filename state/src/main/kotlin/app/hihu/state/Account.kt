@@ -78,13 +78,22 @@ class Account(
     /** Whether [cookies], read from the sign-in page, show that signing in has finished. */
     fun isComplete(cookies: String): Boolean = source.isSignedIn(cookies)
 
-    /** Keeps the session from a finished sign-in and loads the account. */
+    /**
+     * Keeps the session from a finished sign-in and loads the account. The web view's own copy of
+     * the cookies is dropped, so the only one left on the device is the encrypted one.
+     */
     fun signIn(cookies: String) {
         if (!source.isSignedIn(cookies)) return
         job?.cancel()
         source.useSession(cookies)
+        CookieManager.getInstance().run {
+            removeAllCookies(null)
+            flush()
+        }
         job = scope.launch {
-            withContext(Dispatchers.IO) { store.write(cookies) }
+            // Not kept, the session still works until the app closes; signing in again fixes it.
+            runCatching { withContext(Dispatchers.IO) { store.write(cookies) } }
+                .onFailure { Log.w(TAG, "account: cannot save the session", it) }
             check()
         }
     }

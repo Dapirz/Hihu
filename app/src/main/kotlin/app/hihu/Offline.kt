@@ -81,17 +81,29 @@ class Offline(
     ).apply {
         maxParallelDownloads = PARALLEL
         addListener(object : DownloadManager.Listener {
-            override fun onInitialized(downloadManager: DownloadManager) = refresh()
-            override fun onDownloadChanged(downloadManager: DownloadManager, download: Download, finalException: Exception?) = refresh()
-            override fun onDownloadRemoved(downloadManager: DownloadManager, download: Download) = refresh()
+            override fun onInitialized(downloadManager: DownloadManager) = readIndex()
+            override fun onDownloadChanged(downloadManager: DownloadManager, download: Download, finalException: Exception?) {
+                when (val progress = download.toProgress()) {
+                    null -> known.remove(download.request.id)
+                    else -> known[download.request.id] = progress
+                }
+                refresh()
+            }
+            override fun onDownloadRemoved(downloadManager: DownloadManager, download: Download) {
+                known.remove(download.request.id)
+                refresh()
+            }
         })
     }
 
     private val _progress = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
     override val progress: StateFlow<Map<String, DownloadProgress>> = _progress.asStateFlow()
 
+    /** Every download's last known state, read from the index once and then kept from the listener. */
+    private val known = HashMap<String, DownloadProgress>()
+
     // DownloadManager reports changes of state, not of percentage, so progress is read on a timer
-    // while something downloads.
+    // while something downloads, from the running downloads in memory.
     private val main = Handler(Looper.getMainLooper())
     private val tick = Runnable { refresh() }
 
@@ -112,12 +124,17 @@ class Offline(
 
     override fun bytesUsed(): Long = cache.cacheSpace
 
-    /** Reads every download's state into [progress], and keeps reading while any is running. */
-    private fun refresh() {
-        val all = HashMap<String, DownloadProgress>()
+    /** Reads the stored downloads once, when the manager is ready. */
+    private fun readIndex() {
         manager.downloadIndex.getDownloads().use { cursor ->
-            while (cursor.moveToNext()) cursor.download.toProgress()?.let { all[cursor.download.request.id] = it }
+            while (cursor.moveToNext()) cursor.download.toProgress()?.let { known[cursor.download.request.id] = it }
         }
+        refresh()
+    }
+
+    /** Publishes every download's state into [progress], and keeps doing so while any is running. */
+    private fun refresh() {
+        val all = HashMap(known)
         manager.currentDownloads.forEach { download -> download.toProgress()?.let { all[download.request.id] = it } }
         _progress.value = all
         main.removeCallbacks(tick)

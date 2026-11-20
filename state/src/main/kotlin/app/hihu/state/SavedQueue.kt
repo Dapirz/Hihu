@@ -4,8 +4,14 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import app.hihu.music.Song
 
-/** The queue as it was last saved: its songs, which one was playing, and how far in. */
-data class QueueSnapshot(val songs: List<Song>, val index: Int, val positionMs: Long)
+/** The queue as it was last saved: its songs, which one was playing, how far in, and how it plays. */
+data class QueueSnapshot(
+    val songs: List<Song>,
+    val index: Int,
+    val positionMs: Long,
+    val shuffle: Boolean = false,
+    val repeat: Repeat = Repeat.Off,
+)
 
 /** Saves the play queue to the database so it is still there after the app is closed. */
 class SavedQueue(private val store: Store) {
@@ -21,7 +27,11 @@ class SavedQueue(private val store: Store) {
         }
         db.putState(KEY_INDEX, snapshot.index.toLong())
         db.putState(KEY_POSITION, snapshot.positionMs)
+        db.putModes(snapshot.shuffle, snapshot.repeat)
     }
+
+    /** Updates only the shuffle and repeat modes. */
+    suspend fun saveModes(shuffle: Boolean, repeat: Repeat) = store.transaction { db -> db.putModes(shuffle, repeat) }
 
     /** Updates only where in the queue playback is, which changes far more often than the queue. */
     suspend fun savePosition(index: Int, positionMs: Long) = store.transaction { db ->
@@ -35,7 +45,13 @@ class SavedQueue(private val store: Store) {
             .all { it.readSong() }
         if (songs.isEmpty()) return@run null
         val index = db.state(KEY_INDEX).toInt().coerceIn(songs.indices)
-        QueueSnapshot(songs, index, db.state(KEY_POSITION).coerceAtLeast(0))
+        val repeat = Repeat.entries.getOrElse(db.state(KEY_REPEAT).toInt()) { Repeat.Off }
+        QueueSnapshot(songs, index, db.state(KEY_POSITION).coerceAtLeast(0), db.state(KEY_SHUFFLE) == 1L, repeat)
+    }
+
+    private fun SQLiteDatabase.putModes(shuffle: Boolean, repeat: Repeat) {
+        putState(KEY_SHUFFLE, if (shuffle) 1 else 0)
+        putState(KEY_REPEAT, repeat.ordinal.toLong())
     }
 
     private fun SQLiteDatabase.putState(key: String, value: Long) {
@@ -56,5 +72,8 @@ class SavedQueue(private val store: Store) {
     private companion object {
         const val KEY_INDEX = "index"
         const val KEY_POSITION = "position_ms"
+        const val KEY_SHUFFLE = "shuffle"
+        // Repeat's ordinal: off, all, one.
+        const val KEY_REPEAT = "repeat"
     }
 }
