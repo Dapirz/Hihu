@@ -37,7 +37,7 @@ class Lrclib : LyricsProvider {
             add("duration" to seconds.toString())
         }
         val body = get("/api/get", query) ?: return null
-        return toLyrics(JsonParser.`object`().from(body))
+        return toLyrics(JsonParser.`object`().from(body), seconds)
     }
 
     /** A looser search, keeping the hit closest in length to the song. */
@@ -51,13 +51,21 @@ class Lrclib : LyricsProvider {
         return hits.filterIsInstance<JsonObject>()
             .filter { seconds <= 0 || abs(it.getDouble("duration") - seconds) <= MAX_LENGTH_GAP_S }
             .minByOrNull { abs(it.getDouble("duration") - seconds) }
-            ?.let(::toLyrics)
+            ?.let { toLyrics(it, seconds) }
     }
 
-    private fun toLyrics(json: JsonObject): Lyrics? {
+    /**
+     * The lyrics in [json]. Their times are kept only when the entry is as long as the song,
+     * within [SYNC_GAP_S]: a music video with an intro, a live take or an edit is longer or
+     * shorter than the album track the times were set for, and every line would be off.
+     */
+    private fun toLyrics(json: JsonObject, seconds: Long): Lyrics? {
         if (json.getBoolean("instrumental", false)) return null
-        val synced = json.getString("syncedLyrics", null)?.let(::parseLrc)?.takeIf { it.isNotEmpty() }
+        val sameLength = seconds > 0 && abs(json.getDouble("duration", 0.0) - seconds) <= SYNC_GAP_S
+        val timed = json.getString("syncedLyrics", null)?.let(::parseLrc)?.takeIf { it.isNotEmpty() }
         val plain = json.getString("plainLyrics", null)?.takeIf { it.isNotBlank() }
+            ?: timed?.joinToString("\n") { it.text }?.takeIf { it.isNotBlank() }
+        val synced = timed?.takeIf { sameLength }
         if (synced == null && plain == null) return null
         return Lyrics(synced, plain, SOURCE)
     }
@@ -86,7 +94,10 @@ class Lrclib : LyricsProvider {
         // LRCLIB asks clients to name themselves; this names the app and nothing about the user.
         const val USER_AGENT = "Hihu/0.1.0"
         const val TIMEOUT_MS = 10_000
-        const val MAX_LENGTH_GAP_S = 5
+        // A music video can run a minute longer than the track; its words are still the track's.
+        const val MAX_LENGTH_GAP_S = 60
+        // Times set for one cut of a song only fit another that is this close in length.
+        const val SYNC_GAP_S = 2
     }
 }
 

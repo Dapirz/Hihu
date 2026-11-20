@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** The lyrics of the song playing now, and how fetching them is going. */
 data class LyricsState(
@@ -79,7 +81,7 @@ class SongLyrics(
         _state.value = LyricsState(song.id, loading = true)
         job = scope.launch {
             try {
-                val lyrics = source.lyrics(song)
+                val lyrics = source.lyrics(withLength(song))
                 cache.put(song.id, Found(lyrics))
                 _state.value = LyricsState(song.id, lyrics, missing = lyrics == null)
             } catch (e: CancellationException) {
@@ -91,7 +93,20 @@ class SongLyrics(
         }
     }
 
+    /**
+     * [song] with its length. Songs from feeds often come without one, and synced lyrics are only
+     * used when the length matches, so this waits a moment for the player to know it.
+     */
+    private suspend fun withLength(song: Song): Song {
+        if (song.durationMs > 0) return song
+        val known = withTimeoutOrNull(LENGTH_WAIT_MS) {
+            playback.state.first { it.songId == song.id && it.durationMs > 0 }.durationMs
+        } ?: return song
+        return song.copy(durationMs = known)
+    }
+
     private companion object {
+        const val LENGTH_WAIT_MS = 5_000L
         const val TAG = "Hihu"
         const val MAX_CACHED = 50
     }
