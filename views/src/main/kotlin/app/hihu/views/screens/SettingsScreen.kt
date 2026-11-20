@@ -193,22 +193,30 @@ private fun AccountSection(account: Account, onSignIn: () -> Unit) {
 
     Section(stringResource(R.string.section_account))
     when (val current = status) {
-        is AccountStatus.SignedIn -> Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = m.gapXl, vertical = m.gapSm),
-        ) {
-            Artwork(
-                current.profile.photoUri,
-                m.rowArtwork,
-                radius = m.rowArtwork / 2,
-            )
-            Column(Modifier.weight(1f).padding(horizontal = m.gapLg)) {
-                Text(current.profile.name, style = MaterialTheme.typography.bodyLarge)
-                current.profile.handle?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        is AccountStatus.SignedIn -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = m.gapXl, vertical = m.gapSm),
+            ) {
+                Artwork(
+                    current.profile.photoUri,
+                    m.rowArtwork,
+                    radius = m.rowArtwork / 2,
+                )
+                Column(Modifier.weight(1f).padding(horizontal = m.gapLg)) {
+                    Text(current.profile.name, style = MaterialTheme.typography.bodyLarge)
+                    current.profile.handle?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
+                TextButton(onClick = { confirming = true }) { Text(stringResource(R.string.account_sign_out)) }
             }
-            TextButton(onClick = { confirming = true }) { Text(stringResource(R.string.account_sign_out)) }
+            Text(
+                stringResource(R.string.account_likes_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = m.gapXl, vertical = m.gapXs),
+            )
         }
         AccountStatus.Checking -> Note(stringResource(R.string.account_checking))
         AccountStatus.Unreachable -> {

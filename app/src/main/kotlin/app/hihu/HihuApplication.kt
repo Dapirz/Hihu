@@ -30,6 +30,7 @@ import app.hihu.music.lrclib.Lrclib
 import app.hihu.state.Store
 import app.hihu.views.shells.AppState
 import app.hihu.state.Account
+import app.hihu.state.AccountLikes
 import app.hihu.state.AccountStatus
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -57,7 +58,9 @@ class HihuApplication : Application() {
         val youtube = YouTubeMusic(locale = contentLocale(), quality = { preferences.quality.value })
         val store = Store(this)
         val history = History(store, scope)
-        val favorites = Favorites(store, scope)
+        // Signed in, a heart is also a like on the account, sent by AccountLikes once it exists.
+        lateinit var likes: AccountLikes
+        val favorites = Favorites(store, scope) { song, liked -> likes.toggled(song, liked) }
         offline = Offline(this, listOf(youtube))
         val playback = Playback(
             context = this,
@@ -69,6 +72,7 @@ class HihuApplication : Application() {
         val playlists = Playlists(store, scope)
         // Signing in is optional; signed out, everything works anonymously.
         val account = Account(youtube, this, scope)
+        likes = AccountLikes(youtube, account.status, store, scope)
         state = AppState(
             navigator = Navigator(Destination.Home),
             library = Library(MediaStoreLibrary(this), scope),

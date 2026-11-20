@@ -61,6 +61,9 @@ internal class YouTubeFeed(private val api: InnerTube) {
         return playlistSongs(chart).items
     }
 
+    /** Likes or unlikes [videoId]; [api] must carry a session. */
+    fun like(videoId: String, liked: Boolean) = api.like(videoId, liked)
+
     /** The signed-in account from the account menu; [api] must carry a session. */
     fun profile(): AccountProfile {
         val header = findObject(api.accountMenu(), "activeAccountHeaderRenderer")

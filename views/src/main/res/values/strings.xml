@@ -169,4 +169,5 @@
     <string name="library_artists">Artists</string>
     <string name="account_library_failed">Cannot load this part of your library.</string>
     <string name="account_library_empty">Nothing here yet.</string>
+    <string name="account_likes_note">While you\'re signed in, a heart you give in Hihu is also a like on your account. Likes made in YouTube Music don\'t come into Hihu\'s Favorites.</string>
 </resources>

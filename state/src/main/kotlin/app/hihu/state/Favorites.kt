@@ -8,8 +8,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** The songs the user has hearted, newest first, kept in the database. */
-class Favorites(private val store: Store, private val scope: CoroutineScope) {
+/**
+ * The songs the user has hearted, newest first, kept in the database. [onToggle] hears every
+ * heart the user gives or takes away, after it is saved.
+ */
+class Favorites(
+    private val store: Store,
+    private val scope: CoroutineScope,
+    private val onToggle: (song: Song, liked: Boolean) -> Unit = { _, _ -> },
+) {
     private val _songs = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = _songs.asStateFlow()
 
@@ -41,16 +48,19 @@ class Favorites(private val store: Store, private val scope: CoroutineScope) {
                 }
             }
             reload()
+            onToggle(song, adding)
         }
     }
 
+    private suspend fun read(): List<Song> = store.run { db ->
+        db.rawQuery(
+            "SELECT $SONG_COLUMNS FROM favorites f JOIN songs s ON s.id = f.song_id ORDER BY f.added_at DESC",
+            null,
+        ).all { it.readSong() }
+    }
+
     private suspend fun reload() {
-        val songs = store.run { db ->
-            db.rawQuery(
-                "SELECT $SONG_COLUMNS FROM favorites f JOIN songs s ON s.id = f.song_id ORDER BY f.added_at DESC",
-                null,
-            ).all { it.readSong() }
-        }
+        val songs = read()
         _songs.value = songs
         _ids.value = songs.mapTo(HashSet(), Song::id)
     }

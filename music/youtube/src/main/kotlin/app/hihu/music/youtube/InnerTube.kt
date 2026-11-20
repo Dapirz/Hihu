@@ -36,6 +36,15 @@ internal class InnerTube(
     /** The next page of a list whose token came in a `continuationCommand`, sent in the body. */
     fun browseContinuation(token: String): JsonObject = call("browse", "") { value("continuation", token) }
 
+    /** Likes [videoId] on the signed-in account, or removes the like, as YouTube Music's like button does. */
+    fun like(videoId: String, liked: Boolean) {
+        val endpoint = when (liked) {
+            true -> "like/like"
+            false -> "like/removelike"
+        }
+        call(endpoint, "") { `object`("target").value("videoId", videoId).end() }
+    }
+
     /** POSTs to `account/account_menu`, which names the signed-in account. */
     fun accountMenu(): JsonObject = call("account/account_menu", "") {}
 

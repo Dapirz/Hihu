@@ -12,7 +12,8 @@ app/            composition root: Application, MainActivity, PlaybackService (Ex
 views/          screens/, shells/ (HihuRoot), chrome/ (mini player), shared/ (Artwork, SongList, Message)
 state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager,
                 SearchHistory, PlaylistImport, Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface),
-                Account (the signed-in session, encrypted with the Android Keystore in SessionStore)
+                Account (the signed-in session, encrypted with the Android Keystore in SessionStore),
+                AccountLikes (signed in, a heart is also liked on the account, one way, through a queue)
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
                 MusicBrowse, MusicAccount, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider

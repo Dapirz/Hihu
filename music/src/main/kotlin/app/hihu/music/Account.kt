@@ -35,4 +35,10 @@ interface MusicAccount {
 
     /** The artists the account subscribes to. */
     suspend fun followedArtists(): Page<Collection>
+
+    /** Whether [song] can be liked on the account; songs from other sources cannot. */
+    fun canLike(song: Song): Boolean
+
+    /** Likes [song] on the account, or takes the like away. Throws when it cannot be reached. */
+    suspend fun setLiked(song: Song, liked: Boolean)
 }

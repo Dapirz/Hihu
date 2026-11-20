@@ -29,8 +29,8 @@ Early. What works today:
 - notification, lockscreen and headset controls
 
 - optionally, sign in to YouTube Music: your account's playlists, albums and artists in the
-  library, Home and Explore as your account sees them, and likes that stay in step with your
-  account's Liked Music
+  library, Home and Explore as your account sees them, and hearts that are also liked on your
+  account (likes made elsewhere stay out of Hihu's favourites)
 
 Planned: equalizer and volume normalisation.
 

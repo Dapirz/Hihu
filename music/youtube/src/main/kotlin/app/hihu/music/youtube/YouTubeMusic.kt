@@ -104,6 +104,13 @@ class YouTubeMusic(
 
     override suspend fun followedArtists(): Page<Collection> = io { account.library(LIBRARY_ARTISTS) }.onIo()
 
+    override fun canLike(song: Song): Boolean = song.uri.startsWith("$SCHEME://")
+
+    override suspend fun setLiked(song: Song, liked: Boolean) {
+        if (!canLike(song)) return
+        io { account.like(song.uri.removePrefix("$SCHEME://"), liked) }
+    }
+
     override suspend fun home(): Page<Shelf> = io { browsing().home() }.onIo()
 
     override suspend fun explore(): ExploreFeed = io { browsing().explore() }
