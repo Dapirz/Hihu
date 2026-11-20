@@ -1,6 +1,11 @@
 .gradle/
 build/
 local.properties
+# The release key and its password stay off the repository.
+keystore.properties
+*.jks
+*.p12
+*.keystore
 .idea/
 *.iml
 .kotlin/

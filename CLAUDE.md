@@ -90,11 +90,16 @@ when `AppState.account` is not null. Never log the session cookies or the `Autho
 
 ```sh
 ./gradlew assembleStandardDebug
-./gradlew assembleStandardRelease   # R8-minified, signed with the debug key for personal installs
+./gradlew assembleStandardRelease   # R8-minified, signed with Hihu's release key
 ./gradlew assembleGoogleRelease     # Hihu G, with the YouTube Music account
 adb install -r app/build/outputs/apk/standard/release/app-standard-release.apk
 adb install -r app/build/outputs/apk/google/release/app-google-release.apk
 ```
+
+Release builds are signed with Hihu's own key, `hihu.p12`, kept outside the repository; its path
+and password are in `keystore.properties` (ignored, with `storeFile`, `storePassword`, `keyAlias`,
+`keyPassword`). Without that file a release build comes out unsigned. Never print or commit either.
+Debug builds use the machine's debug key under the package suffix `.debug`.
 
 `local.properties` (ignored) holds `sdk.dir`. compileSdk is 37 because Compose 1.12 needs it;
 minSdk is 29.
