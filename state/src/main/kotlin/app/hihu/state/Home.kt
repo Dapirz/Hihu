@@ -87,7 +87,10 @@ class Home(
         similarJob?.cancel()
         similarJob = scope.launch {
             try {
-                val songs = radio.radio(seed).items.take(ROW_SIZE)
+                // Not a song already on the rows of history, nor the same song twice, as a song
+                // and its music video often come one after the other.
+                val heard = recentSongs.value.mapTo(HashSet(), ::sameSong)
+                val songs = radio.radio(seed).items.filter { heard.add(sameSong(it)) }.take(ROW_SIZE)
                 similar.value = PersonalRow.Similar(artist, songs).takeIf { songs.isNotEmpty() }
             } catch (e: CancellationException) {
                 throw e
@@ -96,6 +99,9 @@ class Home(
             }
         }
     }
+
+    /** What makes two songs the same one to a listener: the title and artist, not the id. */
+    private fun sameSong(song: Song) = song.title.trim().lowercase() + "\u0000" + song.artist?.trim()?.lowercase()
 
     private companion object {
         const val TAG = "Hihu"
