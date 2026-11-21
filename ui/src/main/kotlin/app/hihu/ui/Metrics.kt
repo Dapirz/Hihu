@@ -42,6 +42,8 @@ data class Metrics(
     val swipeDistance: Dp = 96.dp,
     /** The tallest a list inside a dialog grows before it scrolls. */
     val dialogListMax: Dp = 360.dp,
+    /** The widest a column of settings grows on a tablet or a phone on its side. */
+    val contentMaxWidth: Dp = 600.dp,
     val none: Dp = 0.dp,
     /** How close to a list edge a dragged row starts it scrolling, and how far per frame. */
     val reorderEdge: Dp = 72.dp,

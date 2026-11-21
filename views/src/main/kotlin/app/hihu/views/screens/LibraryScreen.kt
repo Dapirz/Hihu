@@ -64,6 +64,7 @@ import app.hihu.state.PlaylistSummary
 import app.hihu.state.Playlists
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
+import app.hihu.views.chrome.SelectionBar
 import app.hihu.views.R
 import app.hihu.views.chrome.CommonSongItems
 import app.hihu.views.shared.Artwork
@@ -75,6 +76,7 @@ import app.hihu.views.shared.matching
 import app.hihu.views.shared.matchingSongs
 import app.hihu.views.shared.sortedFor
 import app.hihu.state.LibrarySort
+import java.text.Collator
 import app.hihu.state.Preferences
 import app.hihu.state.SortedList
 import androidx.compose.material3.DropdownMenu
@@ -148,8 +150,9 @@ fun LibraryScreen(
                 LibrarySection.Account -> AccountLibrary(account, query, padding, onOpenCollection, onSignIn)
                 LibrarySection.Playlists -> {
                     val all by playlists.all.collectAsStateWithLifecycle()
-                    val shown = remember(all, query) { all.matching(query) { it.name } }
-                    PlaylistList(shown, query, padding, onOpenPlaylist, onNewPlaylist, onImportPlaylist)
+                    val sorting = rememberSorting(preferences, SortedList.Playlists)
+                    val shown = remember(all, query, sorting.current) { all.matching(query) { it.name }.sortedFor(sorting.current) }
+                    PlaylistList(shown, query, sorting, padding, onOpenPlaylist, onNewPlaylist, onImportPlaylist)
                 }
                 LibrarySection.Favorites -> {
                     val songs by favorites.songs.collectAsStateWithLifecycle()
@@ -206,6 +209,7 @@ private fun SectionChips(selected: LibrarySection, onSelect: (LibrarySection) ->
 private fun PlaylistList(
     playlists: List<PlaylistSummary>,
     query: String,
+    sorting: Sorting,
     padding: PaddingValues,
     onOpen: (Long) -> Unit,
     onNew: () -> Unit,
@@ -215,6 +219,15 @@ private fun PlaylistList(
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
         item(key = "new") { ActionRow(Icons.add, R.string.playlist_new, onNew) }
         item(key = "import") { ActionRow(Icons.link, R.string.import_title, onImport) }
+        if (playlists.isNotEmpty()) {
+            item(key = "sort") {
+                SortLabel(
+                    sorting,
+                    pluralStringResource(R.plurals.playlist_count, playlists.size, playlists.size),
+                    Modifier.fillMaxWidth().padding(start = m.gapXl, end = m.gapLg, top = m.gapSm, bottom = m.gapXs),
+                )
+            }
+        }
         if (playlists.isEmpty()) {
             item(key = "empty") {
                 Text(
@@ -255,7 +268,8 @@ private fun rememberSorting(preferences: Preferences, list: SortedList): Sorting
     val current by preferences.sort(list).collectAsStateWithLifecycle()
     val options = when (list) {
         SortedList.Device -> listOf(LibrarySort.Title, LibrarySort.Artist)
-        SortedList.Favorites, SortedList.Downloads -> LibrarySort.entries
+        SortedList.Favorites, SortedList.Downloads -> listOf(LibrarySort.Added, LibrarySort.Title, LibrarySort.Artist)
+        SortedList.Playlists -> listOf(LibrarySort.Added, LibrarySort.Title, LibrarySort.Count)
     }
     return remember(current, list) { Sorting(current, options) { preferences.setSort(list, it) } }
 }
@@ -291,6 +305,7 @@ private fun SavedSongs(
             playingId = now.songId,
             padding = padding,
             onPlay = { index -> playback.play(songs, index) },
+            selectionBar = { chosen, done -> SelectionBar(chosen, done) },
             menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
         )
     }
@@ -351,6 +366,7 @@ private fun DeviceSongs(library: Library, query: String, playback: Playback, now
                 playingId = now.songId,
                 padding = padding,
                 onPlay = { index -> playback.play(songs, index) },
+                selectionBar = { chosen, done -> SelectionBar(chosen, done) },
                 menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
             )
         }
@@ -364,11 +380,6 @@ private fun DeviceSongs(library: Library, query: String, playback: Playback, now
 @Composable
 private fun SheetHeader(sorting: Sorting?, count: Int, onShuffle: () -> Unit, onPlayAll: () -> Unit) {
     val m = HihuTheme.metrics
-    val countText = pluralStringResource(R.plurals.library_count, count, count)
-    val label = sorting?.let { stringResource(sortLabel(it.current)) }
-    val sortedBy = label?.let { stringResource(R.string.sorted_by, it) }
-    val change = stringResource(R.string.sort_change)
-    var choosing by remember { mutableStateOf(false) }
     val buttons = IconButtonDefaults.filledTonalIconButtonColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -377,51 +388,7 @@ private fun SheetHeader(sorting: Sorting?, count: Int, onShuffle: () -> Unit, on
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(start = m.gapXl, end = m.gapLg, top = m.gapLg, bottom = m.gapSm),
     ) {
-        Box(Modifier.weight(1f)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .then(
-                        when (sorting) {
-                            null -> Modifier
-                            else -> Modifier.clip(RoundedCornerShape(m.radiusSm)).clickable(onClickLabel = change) { choosing = true }
-                        },
-                    )
-                    .clearAndSetSemantics {
-                        contentDescription = if (sortedBy != null) "$sortedBy, $countText" else countText
-                        if (sorting != null) onClick(label = change) { choosing = true; true }
-                    },
-            ) {
-                if (label != null) {
-                    Icon(
-                        painterResource(Icons.sort),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(m.iconMd).padding(end = m.none),
-                    )
-                }
-                Column(Modifier.padding(start = if (label != null) m.gapMd else m.none)) {
-                    if (label != null) Text(label, style = MaterialTheme.typography.titleSmall)
-                    Text(countText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            if (sorting != null) {
-                DropdownMenu(expanded = choosing, onDismissRequest = { choosing = false }) {
-                    sorting.options.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(sortLabel(option))) },
-                            trailingIcon = {
-                                if (option == sorting.current) Icon(painterResource(Icons.check), contentDescription = null, Modifier.size(m.iconMd))
-                            },
-                            onClick = {
-                                choosing = false
-                                sorting.onChange(option)
-                            },
-                        )
-                    }
-                }
-            }
-        }
+        SortLabel(sorting, pluralStringResource(R.plurals.library_count, count, count), Modifier.weight(1f))
         FilledTonalIconButton(onClick = onShuffle, colors = buttons, modifier = Modifier.size(m.roundButton)) {
             Icon(painterResource(Icons.shuffle), stringResource(R.string.shuffle_all), Modifier.size(m.iconMd))
         }
@@ -431,10 +398,79 @@ private fun SheetHeader(sorting: Sorting?, count: Int, onShuffle: () -> Unit, on
     }
 }
 
+/**
+ * The order a list is in (when it has one) above [countText]; tapping it opens a menu of the
+ * other orders.
+ */
+@Composable
+private fun SortLabel(sorting: Sorting?, countText: String, modifier: Modifier = Modifier) {
+    val m = HihuTheme.metrics
+    val label = sorting?.let { stringResource(sortLabel(it.current)) }
+    val sortedBy = label?.let { stringResource(R.string.sorted_by, it) }
+    val change = stringResource(R.string.sort_change)
+    var choosing by remember { mutableStateOf(false) }
+    Box(modifier) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .then(
+                    when (sorting) {
+                        null -> Modifier
+                        else -> Modifier.clip(RoundedCornerShape(m.radiusSm)).clickable(onClickLabel = change) { choosing = true }
+                    },
+                )
+                .clearAndSetSemantics {
+                    contentDescription = if (sortedBy != null) "$sortedBy, $countText" else countText
+                    if (sorting != null) onClick(label = change) { choosing = true; true }
+                },
+        ) {
+            if (label != null) {
+                Icon(
+                    painterResource(Icons.sort),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(m.iconMd).padding(end = m.none),
+                )
+            }
+            Column(Modifier.padding(start = if (label != null) m.gapMd else m.none)) {
+                if (label != null) Text(label, style = MaterialTheme.typography.titleSmall)
+                Text(countText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (sorting != null) {
+            DropdownMenu(expanded = choosing, onDismissRequest = { choosing = false }) {
+                sorting.options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(sortLabel(option))) },
+                        trailingIcon = {
+                            if (option == sorting.current) Icon(painterResource(Icons.check), contentDescription = null, Modifier.size(m.iconMd))
+                        },
+                        onClick = {
+                            choosing = false
+                            sorting.onChange(option)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
 private fun sortLabel(sort: LibrarySort): Int = when (sort) {
     LibrarySort.Added -> R.string.sort_added
     LibrarySort.Title -> R.string.sort_title
     LibrarySort.Artist -> R.string.sort_artist
+    LibrarySort.Count -> R.string.sort_count
+}
+
+/** Playlists in [sort]'s order: newest first as they come, by name, or the fullest first. */
+private fun List<PlaylistSummary>.sortedFor(sort: LibrarySort): List<PlaylistSummary> {
+    val words = Collator.getInstance().apply { strength = Collator.PRIMARY }
+    return when (sort) {
+        LibrarySort.Added, LibrarySort.Artist -> this
+        LibrarySort.Title -> sortedWith(compareBy(words) { it.name })
+        LibrarySort.Count -> sortedByDescending { it.count }
+    }
 }
 
 private fun audioPermission(): String = when (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

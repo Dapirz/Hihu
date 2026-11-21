@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -49,6 +50,7 @@ import app.hihu.state.NowPlaying
 import app.hihu.state.Playback
 import app.hihu.state.Repeat
 import app.hihu.state.SongLyrics
+import app.hihu.state.Preferences
 import androidx.compose.runtime.saveable.rememberSaveable
 import app.hihu.ui.CoverColors
 import app.hihu.ui.DarkSystemBars
@@ -76,6 +78,7 @@ fun PlayerScreen(
     now: NowPlaying,
     playback: Playback,
     lyrics: SongLyrics,
+    preferences: Preferences,
     onClose: () -> Unit,
     onQueue: () -> Unit,
 ) {
@@ -132,36 +135,54 @@ fun PlayerScreen(
                 }
                 SongMenu(now)
             }
-            BoxWithConstraints(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                when (showLyrics) {
-                    true -> LyricsPane(lyrics, now, colors, onSeek = playback::seekTo)
-                    false -> {
-                        val side = minOf(maxWidth, maxHeight, m.playerArtworkMax)
-                        SwipeToSkip(now, playback) { Artwork(now.artworkUri, side, radius = m.radiusLg) }
+            // Wider than tall, a phone on its side or a tablet: the cover beside the controls.
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                val stage: @Composable (Modifier) -> Unit = { modifier ->
+                    BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        when (showLyrics) {
+                            true -> LyricsPane(lyrics, preferences, now, colors, onSeek = playback::seekTo)
+                            false -> {
+                                val side = minOf(maxWidth, maxHeight, m.playerArtworkMax)
+                                SwipeToSkip(now, playback) { Artwork(now.artworkUri, side, radius = m.radiusLg) }
+                            }
+                        }
+                    }
+                }
+                val controls: @Composable () -> Unit = {
+                    Text(
+                        now.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = m.gapXl),
+                    )
+                    Text(
+                        now.artist ?: stringResource(R.string.unknown_artist),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colors.contentMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = m.gapXs),
+                    )
+                    SeekBar(now, colors, onSeek = playback::seekTo)
+                    Transport(now, playback, colors)
+                }
+                when (maxWidth > maxHeight) {
+                    true -> Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                        stage(Modifier.weight(1f).fillMaxHeight())
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.weight(1f).fillMaxHeight().padding(start = m.gapXl),
+                        ) { controls() }
+                    }
+                    false -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        stage(Modifier.weight(1f))
+                        controls()
                     }
                 }
             }
-            Text(
-                now.title,
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = m.gapXl),
-            )
-            Text(
-                now.artist ?: stringResource(R.string.unknown_artist),
-                style = MaterialTheme.typography.bodyLarge,
-                color = colors.contentMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = m.gapXs),
-            )
-            SeekBar(now, colors, onSeek = playback::seekTo)
-            Transport(now, playback, colors)
         }
     }
 }

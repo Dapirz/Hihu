@@ -48,6 +48,7 @@ fun HomeScreen(
 ) {
     val m = HihuTheme.metrics
     val personal by home.personal.collectAsStateWithLifecycle()
+    val releases by home.releases.collectAsStateWithLifecycle()
     val shelves by home.shelves.collectAsStateWithLifecycle()
     val list = rememberLazyListState()
     val more = shelves.more(home::loadMore)
@@ -72,6 +73,16 @@ fun HomeScreen(
                     onOpen = onOpen,
                     menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
                 )
+            }
+            if (releases.isNotEmpty()) {
+                item(key = "releases") {
+                    ShelfView(
+                        title = stringResource(R.string.home_new_releases),
+                        items = releases.map(SearchResult::Group),
+                        onSong = onSongs,
+                        onOpen = onOpen,
+                    )
+                }
             }
             items(shelves.items, key = { "shelf:${it.title}" }) { shelf ->
                 ShelfView(

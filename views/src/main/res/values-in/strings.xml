@@ -8,6 +8,15 @@
     <string name="sort_added">Baru ditambahkan</string>
     <string name="sort_title">Judul</string>
     <string name="sort_artist">Artis</string>
+    <string name="sort_count">Lagu terbanyak</string>
+    <string name="playlist_add_anyway">Tetap tambahkan</string>
+    <string name="playlist_skip_repeats">Lewati yang dobel</string>
+    <plurals name="playlist_count">
+        <item quantity="other">%d playlist</item>
+    </plurals>
+    <plurals name="playlist_already_has">
+        <item quantity="other">%d lagu sudah ada di playlist ini.</item>
+    </plurals>
     <string name="sorted_by">Urutan: %1$s</string>
     <string name="sort_change">Ubah urutan</string>
     <string name="play_all">Putar semua</string>
@@ -89,6 +98,9 @@
     <string name="theme_black_detail">Latar hitam di tema gelap. Menghemat baterai di layar AMOLED.</string>
     <string name="settings_appearance">Tampilan</string>
     <string name="settings_playback">Pemutaran</string>
+    <string name="settings_about">Tentang</string>
+    <string name="send_log">Kirim log</string>
+    <string name="send_log_detail">Log Hihu dari sesi ini untuk laporan bug, tanpa alamat web, lewat menu berbagi. Tidak ada yang terkirim sendiri.</string>
     <string name="quality_high">Tinggi</string>
     <string name="quality_high_detail">Kualitas terbaik dari YouTube, sekitar 160 kbps. Paling boros kuota.</string>
     <string name="quality_normal">Normal</string>
@@ -124,6 +136,10 @@
     <string name="lyrics_later">+0,5 dtk</string>
     <string name="lyrics_later_label">Tampilkan lirik setengah detik lebih lambat</string>
     <string name="lyrics_timing">Timing</string>
+    <string name="lyrics_smaller">A−</string>
+    <string name="lyrics_smaller_label">Perkecil teks lirik</string>
+    <string name="lyrics_larger">A+</string>
+    <string name="lyrics_larger_label">Perbesar teks lirik</string>
     <string name="lyrics_timing_moved">Timing %1$s dtk</string>
     <string name="lyrics_timing_reset">Kembalikan timing</string>
     <string name="download">Download</string>
@@ -190,10 +206,19 @@
     <string name="unhide_song">Tampilkan lagi</string>
     <string name="done">Selesai</string>
     <string name="home_most_played">Sering kamu putar</string>
+    <string name="home_new_releases">Rilis baru dari artis kamu</string>
     <string name="artist_radio">Radio</string>
     <string name="artist_radio_label">Putar radio lagu yang mirip artis ini</string>
     <string name="queue_save">Simpan sebagai playlist</string>
     <string name="start_radio">Mulai radio</string>
+    <string name="select_songs">Pilih lagu</string>
+    <string name="select_done">Selesai memilih</string>
+    <plurals name="selected_count">
+        <item quantity="other">%d dipilih</item>
+    </plurals>
+    <string name="download_likes">Download lagu yang disukai</string>
+    <string name="download_likes_detail">Lagu yang kamu beri hati otomatis di-download, hanya lewat Wi-Fi. Lagu yang disukai saat pakai data seluler di-download nanti saat Wi-Fi tersambung.</string>
+    <string name="quality_download">Kualitas download</string>
     <string name="share_song">Bagikan</string>
     <string name="share_song_text">%1$s – %2$s\n%3$s</string>
     <string name="queue_remove_played">Hapus lagu yang sudah diputar</string>

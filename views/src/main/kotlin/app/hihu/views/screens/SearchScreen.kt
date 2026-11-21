@@ -57,6 +57,7 @@ import app.hihu.state.Radio
 import app.hihu.state.Search
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
+import app.hihu.views.chrome.SelectionBar
 import app.hihu.views.R
 import app.hihu.views.chrome.CommonSongItems
 import app.hihu.views.shared.CollectionList
@@ -149,6 +150,7 @@ fun SearchScreen(
                         // Like YouTube Music: the tapped song, then songs like it, not the other hits.
                         onPlay = { index -> radio.start(songs[index]) },
                         more = results.more(search::loadMore),
+                        selectionBar = { chosen, done -> SelectionBar(chosen, done) },
                         menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
                     )
                 }

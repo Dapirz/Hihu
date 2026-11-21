@@ -9,6 +9,17 @@
     <string name="sort_added">Recently added</string>
     <string name="sort_title">Title</string>
     <string name="sort_artist">Artist</string>
+    <string name="sort_count">Most songs</string>
+    <string name="playlist_add_anyway">Add anyway</string>
+    <string name="playlist_skip_repeats">Skip the repeats</string>
+    <plurals name="playlist_count">
+        <item quantity="one">%d playlist</item>
+        <item quantity="other">%d playlists</item>
+    </plurals>
+    <plurals name="playlist_already_has">
+        <item quantity="one">This song is already in this playlist.</item>
+        <item quantity="other">%d of these songs are already in this playlist.</item>
+    </plurals>
     <string name="sorted_by">Sorted by %1$s</string>
     <string name="sort_change">Change the order</string>
     <string name="play_all">Play all</string>
@@ -92,6 +103,9 @@
     <string name="theme_black_detail">Black background in the dark theme. Saves battery on AMOLED screens.</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_playback">Playback</string>
+    <string name="settings_about">About</string>
+    <string name="send_log">Send log</string>
+    <string name="send_log_detail">Hihu\'s log from this run, for a bug report, with web addresses taken out, through the share sheet. Nothing is sent by itself.</string>
     <string name="quality_high">High</string>
     <string name="quality_high_detail">The best YouTube offers, about 160 kbps. Uses the most data.</string>
     <string name="quality_normal">Normal</string>
@@ -128,6 +142,10 @@
     <string name="lyrics_later">+0.5 s</string>
     <string name="lyrics_later_label">Show the lyrics half a second later</string>
     <string name="lyrics_timing">Timing</string>
+    <string name="lyrics_smaller">A−</string>
+    <string name="lyrics_smaller_label">Smaller lyrics</string>
+    <string name="lyrics_larger">A+</string>
+    <string name="lyrics_larger_label">Larger lyrics</string>
     <string name="lyrics_timing_moved">Timing %1$s s</string>
     <string name="lyrics_timing_reset">Reset the timing</string>
     <string name="download">Download</string>
@@ -195,10 +213,20 @@
     <string name="unhide_song">Show again</string>
     <string name="done">Done</string>
     <string name="home_most_played">On repeat</string>
+    <string name="home_new_releases">New from your artists</string>
     <string name="artist_radio">Radio</string>
     <string name="artist_radio_label">Play a radio of songs like this artist</string>
     <string name="queue_save">Save as playlist</string>
     <string name="start_radio">Start radio</string>
+    <string name="select_songs">Select songs</string>
+    <string name="select_done">Stop selecting</string>
+    <plurals name="selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="download_likes">Download songs you like</string>
+    <string name="download_likes_detail">Songs you heart are downloaded, over Wi-Fi only. One hearted on mobile data is downloaded once Wi-Fi connects.</string>
+    <string name="quality_download">Download quality</string>
     <string name="share_song">Share</string>
     <string name="share_song_text">%1$s – %2$s\n%3$s</string>
     <string name="queue_remove_played">Remove played songs</string>

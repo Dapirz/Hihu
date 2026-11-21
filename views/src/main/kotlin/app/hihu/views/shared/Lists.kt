@@ -2,6 +2,10 @@ package app.hihu.views.shared
 
 import android.icu.text.CompactDecimalFormat
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.selected
 import androidx.compose.foundation.background
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.zIndex
@@ -78,6 +82,9 @@ fun Paged<*>.more(onLoad: () -> Unit) = ListMore(hasMore, loadingMore, moreFaile
  * A list of songs with dividers between rows. The row of [playingId] is shown in the accent
  * colour with an equaliser mark. Tapping a row calls [onPlay] with its index. [header] scrolls
  * with the list, above the first row.
+ *
+ * Given a [selectionBar], holding a row starts choosing several songs: taps then add or take
+ * away rows, the bar shows above the list with the songs chosen, and back ends it.
  */
 @Composable
 fun SongList(
@@ -96,51 +103,71 @@ fun SongList(
     onMove: ((from: Int, to: Int) -> Unit)? = null,
     /** Shows each row's position, 1 first, before its cover, like a chart. */
     numbered: Boolean = false,
+    selectionBar: (@Composable (chosen: List<Song>, done: () -> Unit) -> Unit)? = null,
 ) {
     val m = HihuTheme.metrics
     val list = rememberLazyListState()
+    var chosen by rememberSaveable { mutableStateOf(listOf<String>()) }
+    val choosing = selectionBar != null && chosen.isNotEmpty()
+    val toggle = { song: Song ->
+        chosen = when (song.id in chosen) {
+            true -> chosen - song.id
+            false -> chosen + song.id
+        }
+    }
+    BackHandler(enabled = choosing) { chosen = emptyList() }
     // Rows are copied so a drag can reorder them on screen before anything is saved.
     val rows = remember(songs) { songs.mapIndexed { i, song -> ReorderRow(key(i, song), song, i) }.toMutableStateList() }
     val onMoveNow by rememberUpdatedState(onMove)
     val reorder = remember(list, rows) { ReorderState(list, rows) { from, to -> onMoveNow?.invoke(from, to) } }
     if (onMove != null) AutoScrollWhileDragging(reorder)
     LoadMoreNearEnd(list, more)
-    LazyColumn(modifier.fillMaxSize(), state = list, contentPadding = padding) {
-        if (header != null) item(key = HEADER_KEY) { header() }
-        itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
-            val song = row.item
-            val rowMenu: (@Composable ColumnScope.(() -> Unit) -> Unit)? =
-                menu?.let { items -> { dismiss -> items(song, index, dismiss) } }
-            val dragged = reorder.dragging == row.key
-            val handle: (@Composable () -> Unit)? = onMove?.let {
-                {
-                    Icon(
-                        painterResource(Icons.dragHandle),
-                        stringResource(R.string.drag_to_reorder),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(m.roundButton).padding(m.gapMd).dragHandle(reorder, row.key),
+    Column(modifier.fillMaxSize()) {
+        if (choosing) selectionBar?.invoke(songs.filter { it.id in chosen }) { chosen = emptyList() }
+        LazyColumn(Modifier.weight(1f), state = list, contentPadding = padding) {
+            if (header != null) item(key = HEADER_KEY) { header() }
+            itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
+                val song = row.item
+                val rowMenu: (@Composable ColumnScope.(() -> Unit) -> Unit)? =
+                    menu?.let { items -> { dismiss -> items(song, index, dismiss) } }
+                val dragged = reorder.dragging == row.key
+                val handle: (@Composable () -> Unit)? = onMove?.let {
+                    {
+                        Icon(
+                            painterResource(Icons.dragHandle),
+                            stringResource(R.string.drag_to_reorder),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(m.roundButton).padding(m.gapMd).dragHandle(reorder, row.key),
+                        )
+                    }
+                }
+                Column(
+                    Modifier
+                        .then(if (dragged) Modifier else Modifier.animateItem())
+                        .zIndex(if (dragged) 1f else 0f)
+                        .graphicsLayer { translationY = if (dragged) reorder.offset else 0f }
+                        .background(if (dragged) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent),
+                ) {
+                    SongRow(
+                        song,
+                        playing = isPlaying(index, song),
+                        onClick = {
+                            when (choosing) {
+                                true -> toggle(song)
+                                false -> onPlay(index)
+                            }
+                        },
+                        menu = rowMenu,
+                        handle = handle,
+                        rank = if (numbered) index + 1 else null,
+                        selected = choosing && song.id in chosen,
+                        onLongClick = selectionBar?.let { { toggle(song) } },
                     )
+                    if (index < rows.lastIndex && !dragged) RowDivider(m.gapLg + m.rowArtwork + m.gapLg)
                 }
             }
-            Column(
-                Modifier
-                    .then(if (dragged) Modifier else Modifier.animateItem())
-                    .zIndex(if (dragged) 1f else 0f)
-                    .graphicsLayer { translationY = if (dragged) reorder.offset else 0f }
-                    .background(if (dragged) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent),
-            ) {
-                SongRow(
-                    song,
-                    playing = isPlaying(index, song),
-                    onClick = { onPlay(index) },
-                    menu = rowMenu,
-                    handle = handle,
-                    rank = if (numbered) index + 1 else null,
-                )
-                if (index < rows.lastIndex && !dragged) RowDivider(m.gapLg + m.rowArtwork + m.gapLg)
-            }
+            moreFooter(more)
         }
-        moreFooter(more)
     }
 }
 
@@ -165,7 +192,10 @@ fun CollectionList(
     }
 }
 
-/** One song: cover, title, and artist with the length, and a ⋮ button when it has a [menu]. */
+/**
+ * One song: cover, title, and artist with the length, and a ⋮ button when it has a [menu]. A
+ * [selected] row is tinted; [onLongClick], when given, is what holding the row does.
+ */
 @Composable
 fun SongRow(
     song: Song,
@@ -174,6 +204,8 @@ fun SongRow(
     menu: (@Composable ColumnScope.(dismiss: () -> Unit) -> Unit)? = null,
     handle: (@Composable () -> Unit)? = null,
     rank: Int? = null,
+    selected: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val m = HihuTheme.metrics
     val (titleColor, subColor) = when (playing) {
@@ -190,8 +222,12 @@ fun SongRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .semantics { if (playing) stateDescription = playingLabel }
+            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick, onLongClickLabel = onLongClick?.let { stringResource(R.string.select_songs) })
+            .semantics {
+                if (playing) stateDescription = playingLabel
+                if (onLongClick != null) this.selected = selected
+            }
             .padding(start = m.gapLg, end = if (menu != null || handle != null) m.gapXs else m.gapLg, top = m.gapMd, bottom = m.gapMd),
     ) {
         if (rank != null) {

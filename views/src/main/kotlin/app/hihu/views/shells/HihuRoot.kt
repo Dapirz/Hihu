@@ -1,5 +1,16 @@
 package app.hihu.views.shells
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.unit.IntOffset
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -11,7 +22,9 @@ import app.hihu.views.shared.LocalSongBadges
 import app.hihu.views.shared.RowBadge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -26,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.music.Collection
@@ -75,6 +89,7 @@ import app.hihu.views.screens.SettingsScreen
 import app.hihu.views.screens.SignInScreen
 import app.hihu.state.Account
 import app.hihu.state.HiddenSongs
+import app.hihu.state.BugReport
 import app.hihu.music.PlaylistLinks
 
 /** Everything the UI reads and drives, built once by the app module. */
@@ -95,6 +110,8 @@ class AppState(
     val playlistImport: PlaylistImport,
     val downloads: Downloads,
     val hidden: HiddenSongs,
+    /** The log to attach to a bug report. */
+    val bugReport: BugReport,
     /** Song links to share, from the provider that has them. */
     val links: PlaylistLinks,
     val preferences: Preferences,
@@ -209,95 +226,150 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
     // after the player or a playlist has covered the library and gone again.
     var librarySection by rememberSaveable { mutableStateOf(LibrarySection.Playlists) }
 
-    when (val current = stack.last()) {
-        Destination.Player -> Scaffold { _ ->
-            PlayerScreen(now, app.playback, app.lyrics, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
-        }
-        Destination.Queue -> Scaffold { _ ->
-            QueueScreen(app.playback, app.radio, now, onSave = onSaveQueue, onClose = { navigator.pop() })
-        }
-        Destination.Settings -> Scaffold { _ ->
-            SettingsScreen(
-                app.preferences,
-                app.downloads,
-                app.hidden,
-                app.account,
-                onSignIn = { navigator.push(Destination.SignIn) },
-                onBack = { navigator.pop() },
-            )
-        }
-        Destination.SignIn -> Scaffold { _ ->
-            SignInScreen(app.account, onDone = { navigator.pop() }, onBack = { navigator.pop() })
-        }
-        else -> Scaffold(bottomBar = { BottomChrome(navigator.tab, now, navigator, app.playback) }) { padding ->
-            when (current) {
-                Destination.Search -> SearchScreen(
-                    search = app.search,
-                    playback = app.playback,
-                    radio = app.radio,
-                    now = now,
-                    contentPadding = padding,
-                    onOpen = openCollection,
-                    onSettings = openSettings,
-                )
-                Destination.Home -> HomeScreen(
-                    home = app.home,
-                    contentPadding = padding,
-                    onSongs = playFromFeed,
-                    onOpen = openCollection,
-                    onSettings = openSettings,
-                )
-                Destination.Explore -> ExploreScreen(
-                    explore = app.explore,
-                    playback = app.playback,
-                    now = now,
-                    contentPadding = padding,
-                    onSongs = playFromFeed,
-                    onOpen = openCollection,
-                    onMood = openMood,
-                    onSettings = openSettings,
-                )
-                is Destination.Mood -> when (val open = app.moods[current.ref]) {
-                    null -> LaunchedEffect(current) { navigator.pop() }
-                    else -> MoodScreen(open, padding, onSongs = playFromFeed, onOpen = openCollection, onBack = { navigator.pop() })
-                }
-                Destination.Library -> LibraryScreen(
-                    library = app.library,
-                    playlists = app.playlists,
-                    favorites = app.favorites,
-                    downloads = app.downloads,
-                    history = app.history,
-                    playback = app.playback,
-                    now = now,
-                    contentPadding = padding,
-                    onSettings = openSettings,
-                    onOpenPlaylist = { navigator.push(Destination.Playlist(it)) },
-                    onNewPlaylist = onNewPlaylist,
-                    onImportPlaylist = onImportPlaylist,
-                    section = librarySection,
-                    onSection = { librarySection = it },
-                    account = app.account,
-                    onOpenCollection = openCollection,
+    // The player, the queue, settings and sign-in cover the tabs; the tabs and what is opened
+    // from them share the bottom bar. Each layer changes with a short slide and fade.
+    val top = stack.last()
+    val overlay = top.takeIf(::isOverlay)
+    val base = stack.lastOrNull { !isOverlay(it) } ?: Destination.Home
+    AnimatedContent(
+        targetState = overlay,
+        transitionSpec = { overlayTransition(initialState, targetState) },
+        label = "overlay",
+    ) { shown ->
+        when (shown) {
+            Destination.Player -> Scaffold { _ ->
+                PlayerScreen(now, app.playback, app.lyrics, app.preferences, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
+            }
+            Destination.Queue -> Scaffold { _ ->
+                QueueScreen(app.playback, app.radio, now, onSave = onSaveQueue, onClose = { navigator.pop() })
+            }
+            Destination.Settings -> Scaffold { _ ->
+                SettingsScreen(
+                    app.preferences,
+                    app.downloads,
+                    app.hidden,
+                    app.bugReport,
+                    app.account,
                     onSignIn = { navigator.push(Destination.SignIn) },
-                    preferences = app.preferences,
-                )
-                is Destination.Collection -> when (val open = app.collections[current.id]) {
-                    null -> LaunchedEffect(current) { navigator.pop() }
-                    else -> CollectionScreen(open, app.playback, app.radio, now, padding, onBack = { navigator.pop() })
-                }
-                is Destination.Playlist -> PlaylistScreen(
-                    id = current.id,
-                    playlists = app.playlists,
-                    playback = app.playback,
-                    now = now,
-                    contentPadding = padding,
                     onBack = { navigator.pop() },
                 )
-                Destination.Player, Destination.Queue, Destination.Settings, Destination.SignIn -> Unit
+            }
+            Destination.SignIn -> Scaffold { _ ->
+                SignInScreen(app.account, onDone = { navigator.pop() }, onBack = { navigator.pop() })
+            }
+            else -> Scaffold(bottomBar = { BottomChrome(navigator.tab, now, navigator, app.playback) }) { padding ->
+                AnimatedContent(
+                    targetState = base to stack.size,
+                    transitionSpec = { screenTransition(initialState, targetState) },
+                    contentKey = { it.first },
+                    label = "screen",
+                ) { (current, _) ->
+                    when (current) {
+                        Destination.Search -> SearchScreen(
+                            search = app.search,
+                            playback = app.playback,
+                            radio = app.radio,
+                            now = now,
+                            contentPadding = padding,
+                            onOpen = openCollection,
+                            onSettings = openSettings,
+                        )
+                        Destination.Home -> HomeScreen(
+                            home = app.home,
+                            contentPadding = padding,
+                            onSongs = playFromFeed,
+                            onOpen = openCollection,
+                            onSettings = openSettings,
+                        )
+                        Destination.Explore -> ExploreScreen(
+                            explore = app.explore,
+                            playback = app.playback,
+                            now = now,
+                            contentPadding = padding,
+                            onSongs = playFromFeed,
+                            onOpen = openCollection,
+                            onMood = openMood,
+                            onSettings = openSettings,
+                        )
+                        is Destination.Mood -> when (val open = app.moods[current.ref]) {
+                            null -> LaunchedEffect(current) { navigator.pop() }
+                            else -> MoodScreen(open, padding, onSongs = playFromFeed, onOpen = openCollection, onBack = { navigator.pop() })
+                        }
+                        Destination.Library -> LibraryScreen(
+                            library = app.library,
+                            playlists = app.playlists,
+                            favorites = app.favorites,
+                            downloads = app.downloads,
+                            history = app.history,
+                            playback = app.playback,
+                            now = now,
+                            contentPadding = padding,
+                            onSettings = openSettings,
+                            onOpenPlaylist = { navigator.push(Destination.Playlist(it)) },
+                            onNewPlaylist = onNewPlaylist,
+                            onImportPlaylist = onImportPlaylist,
+                            section = librarySection,
+                            onSection = { librarySection = it },
+                            account = app.account,
+                            onOpenCollection = openCollection,
+                            onSignIn = { navigator.push(Destination.SignIn) },
+                            preferences = app.preferences,
+                        )
+                        is Destination.Collection -> when (val open = app.collections[current.id]) {
+                            null -> LaunchedEffect(current) { navigator.pop() }
+                            else -> CollectionScreen(open, app.playback, app.radio, now, padding, onBack = { navigator.pop() })
+                        }
+                        is Destination.Playlist -> PlaylistScreen(
+                            id = current.id,
+                            playlists = app.playlists,
+                            playback = app.playback,
+                            now = now,
+                            contentPadding = padding,
+                            onBack = { navigator.pop() },
+                        )
+                        else -> Unit
+                    }
+                }
             }
         }
     }
 }
+
+/** Whether [destination] covers the whole screen, bottom bar and all. */
+private fun isOverlay(destination: Destination) = when (destination) {
+    Destination.Player, Destination.Queue, Destination.Settings, Destination.SignIn -> true
+    else -> false
+}
+
+/** The player rises from the bottom and sinks back; the other full screens slide in from the side. */
+private fun overlayTransition(from: Destination?, to: Destination?): ContentTransform {
+    val spec = tween<IntOffset>(TRANSITION_MS)
+    val fade = tween<Float>(TRANSITION_MS)
+    val player = to == Destination.Player || (to == null && from == Destination.Player)
+    val opening = to != null && (from == null || from == Destination.Player)
+    return when {
+        player && opening -> (slideInVertically(spec) { it / SLIDE_PART } + fadeIn(fade)) togetherWith fadeOut(fade)
+        player -> fadeIn(fade) togetherWith (slideOutVertically(spec) { it / SLIDE_PART } + fadeOut(fade))
+        opening -> (slideInHorizontally(spec) { it / SLIDE_PART } + fadeIn(fade)) togetherWith fadeOut(fade)
+        to == null -> fadeIn(fade) togetherWith (slideOutHorizontally(spec) { it / SLIDE_PART } + fadeOut(fade))
+        else -> fadeIn(fade) togetherWith fadeOut(fade)
+    }
+}
+
+/** Opening something slides it in from the right and going back slides it away; tabs just fade. */
+private fun screenTransition(from: Pair<Destination, Int>, to: Pair<Destination, Int>): ContentTransform {
+    val spec = tween<IntOffset>(TRANSITION_MS)
+    val fade = tween<Float>(TRANSITION_MS)
+    return when {
+        to.second > from.second -> (slideInHorizontally(spec) { it / SLIDE_PART } + fadeIn(fade)) togetherWith fadeOut(fade)
+        to.second < from.second -> fadeIn(fade) togetherWith (slideOutHorizontally(spec) { it / SLIDE_PART } + fadeOut(fade))
+        else -> fadeIn(fade) togetherWith fadeOut(fade)
+    }
+}
+
+private const val TRANSITION_MS = 200
+/** Screens slide this fraction of their size, not all the way, so the move stays light. */
+private const val SLIDE_PART = 4
 
 /** The playlist picker and the new-playlist name dialog, when either is open. */
 @Composable
@@ -309,11 +381,17 @@ private fun Dialogs(
     onNaming: (List<Song>?) -> Unit,
 ) {
     val playlists by app.playlists.all.collectAsStateWithLifecycle()
+    // Songs headed for a playlist that already holds some of them, waiting for the user to choose.
+    var doubled by remember { mutableStateOf<Pair<Long, List<Song>>?>(null) }
     if (picking != null) {
         PlaylistPicker(
             playlists = playlists,
             onPick = { id ->
-                app.playlists.add(id, picking)
+                val there = app.playlists.members.value[id].orEmpty()
+                when (picking.any { it.id in there }) {
+                    true -> doubled = id to picking
+                    false -> app.playlists.add(id, picking)
+                }
                 onPicking(null)
             },
             onNew = {
@@ -321,6 +399,34 @@ private fun Dialogs(
                 onPicking(null)
             },
             onDismiss = { onPicking(null) },
+        )
+    }
+    doubled?.let { (id, songs) ->
+        val there = app.playlists.members.value[id].orEmpty()
+        val fresh = songs.filter { it.id !in there }
+        val repeats = songs.size - fresh.size
+        AlertDialog(
+            onDismissRequest = { doubled = null },
+            text = { Text(pluralStringResource(R.plurals.playlist_already_has, repeats, repeats)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    app.playlists.add(id, songs)
+                    doubled = null
+                }) { Text(stringResource(R.string.playlist_add_anyway)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    if (fresh.isNotEmpty()) app.playlists.add(id, fresh)
+                    doubled = null
+                }) {
+                    Text(
+                        when (fresh.isEmpty()) {
+                            true -> stringResource(R.string.cancel)
+                            false -> stringResource(R.string.playlist_skip_repeats)
+                        },
+                    )
+                }
+            },
         )
     }
     if (naming != null) {

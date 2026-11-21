@@ -27,7 +27,7 @@ fun List<Song>.matchingSongs(query: String): List<Song> =
 fun List<Song>.sortedFor(sort: LibrarySort): List<Song> {
     val words = Collator.getInstance().apply { strength = Collator.PRIMARY }
     return when (sort) {
-        LibrarySort.Added -> this
+        LibrarySort.Added, LibrarySort.Count -> this
         LibrarySort.Title -> sortedWith(compareBy(words) { it.title })
         LibrarySort.Artist -> sortedWith(compareBy<Song, String?>(nullsLast(words)) { it.artist }.thenBy(words) { it.title })
     }

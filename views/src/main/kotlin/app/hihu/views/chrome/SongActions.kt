@@ -4,6 +4,20 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import app.hihu.ui.HihuTheme
+import app.hihu.ui.Icons
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
@@ -91,6 +105,46 @@ fun ShareItem(song: Song, dismiss: () -> Unit) {
         dismiss()
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
         context.startActivity(Intent.createChooser(send, title))
+    }
+}
+
+/**
+ * The bar over a list while several songs are chosen: how many, and what to do with them all at
+ * once. Each action ends the choosing through [done].
+ */
+@Composable
+fun SelectionBar(songs: List<Song>, done: () -> Unit) {
+    val m = HihuTheme.metrics
+    val actions = LocalSongActions.current
+    val downloadable = songs.filter(actions.downloads::supports)
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = m.gapXs)) {
+            IconButton(onClick = done) {
+                Icon(painterResource(Icons.close), stringResource(R.string.select_done), Modifier.size(m.iconMd))
+            }
+            Text(
+                pluralStringResource(R.plurals.selected_count, songs.size, songs.size),
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                modifier = Modifier.weight(1f).padding(start = m.gapXs),
+            )
+            IconButton(onClick = {
+                actions.playback.playNext(songs)
+                done()
+            }) { Icon(painterResource(Icons.queue), stringResource(R.string.play_next), Modifier.size(m.iconMd)) }
+            IconButton(onClick = {
+                done()
+                actions.pickPlaylist(songs)
+            }) { Icon(painterResource(Icons.add), stringResource(R.string.add_to_playlist), Modifier.size(m.iconMd)) }
+            IconButton(onClick = {
+                actions.download(downloadable)
+                done()
+            }, enabled = downloadable.isNotEmpty()) { Icon(painterResource(Icons.download), stringResource(R.string.download), Modifier.size(m.iconMd)) }
+            IconButton(onClick = {
+                songs.forEach(actions.hidden::hide)
+                done()
+            }) { Icon(painterResource(Icons.hide), stringResource(R.string.hide_song), Modifier.size(m.iconMd)) }
+        }
     }
 }
 

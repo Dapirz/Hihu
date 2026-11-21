@@ -4,6 +4,11 @@ import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.text.TextStyle
+import app.hihu.state.LYRICS_SIZES
+import app.hihu.state.Preferences
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -51,9 +56,18 @@ import java.util.Locale
  * moved half a second at a time when the lines run early or late. Plain lyrics just scroll.
  */
 @Composable
-fun LyricsPane(lyrics: SongLyrics, now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit, modifier: Modifier = Modifier) {
+fun LyricsPane(
+    lyrics: SongLyrics,
+    preferences: Preferences,
+    now: NowPlaying,
+    colors: CoverColors,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val m = HihuTheme.metrics
     val state by lyrics.state.collectAsStateWithLifecycle()
+    val size by preferences.lyricsSize.collectAsStateWithLifecycle()
+    val scale = LYRICS_SIZES[size]
 
     DisposableEffect(lyrics) {
         lyrics.setVisible(true)
@@ -70,19 +84,30 @@ fun LyricsPane(lyrics: SongLyrics, now: NowPlaying, colors: CoverColors, onSeek:
             }
             found == null -> Note(stringResource(R.string.lyrics_missing), colors)
             found.synced != null -> Column(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(1f)) { Synced(found.synced!!, found.source, state.offsetMs, now, colors, onSeek) }
-                Timing(state.offsetMs, colors, onShift = lyrics::shift, onReset = lyrics::resetOffset)
+                Box(Modifier.weight(1f)) { Synced(found.synced!!, found.source, state.offsetMs, scale, now, colors, onSeek) }
+                LyricsControls {
+                    TextSize(size, colors, preferences::setLyricsSize)
+                    Timing(state.offsetMs, colors, onShift = lyrics::shift, onReset = lyrics::resetOffset)
+                }
             }
-            else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = m.gapLg)) {
-                Text(found.plain.orEmpty(), style = MaterialTheme.typography.titleMedium, color = colors.content, lineHeight = MaterialTheme.typography.titleLarge.lineHeight)
-                Source(found.source, colors)
+            else -> Column(Modifier.fillMaxSize()) {
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = m.gapLg)) {
+                    Text(
+                        found.plain.orEmpty(),
+                        style = MaterialTheme.typography.titleMedium.scaled(scale),
+                        color = colors.content,
+                        lineHeight = MaterialTheme.typography.titleLarge.lineHeight * scale,
+                    )
+                    Source(found.source, colors)
+                }
+                LyricsControls { TextSize(size, colors, preferences::setLyricsSize) }
             }
         }
     }
 }
 
 @Composable
-private fun Synced(lines: List<LyricLine>, source: String, offsetMs: Long, now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit) {
+private fun Synced(lines: List<LyricLine>, source: String, offsetMs: Long, scale: Float, now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit) {
     val m = HihuTheme.metrics
     val position = smoothPosition(now)
     // -1 before the first line starts: nothing is lit yet, and the list waits at the top.
@@ -97,7 +122,7 @@ private fun Synced(lines: List<LyricLine>, source: String, offsetMs: Long, now: 
                 val active = i == current
                 Text(
                     line.text.ifBlank { "♪" },
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.scaled(scale),
                     fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                     color = if (active) colors.content else colors.contentMuted,
                     modifier = Modifier
@@ -111,6 +136,36 @@ private fun Synced(lines: List<LyricLine>, source: String, offsetMs: Long, now: 
     }
 }
 
+/** The row of buttons under the lyrics, centred, wrapping onto a second line when it must. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LyricsControls(content: @Composable () -> Unit) {
+    val m = HihuTheme.metrics
+    FlowRow(
+        horizontalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth().padding(top = m.gapSm),
+    ) { content() }
+}
+
+/** Smaller and larger text for the lyrics, kept for every song. */
+@Composable
+private fun TextSize(size: Int, colors: CoverColors, onSize: (Int) -> Unit) {
+    val smaller = stringResource(R.string.lyrics_smaller_label)
+    val larger = stringResource(R.string.lyrics_larger_label)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = { onSize(size - 1) }, enabled = size > 0, modifier = Modifier.semantics { contentDescription = smaller }) {
+            Text(stringResource(R.string.lyrics_smaller), color = colors.content)
+        }
+        TextButton(onClick = { onSize(size + 1) }, enabled = size < LYRICS_SIZES.lastIndex, modifier = Modifier.semantics { contentDescription = larger }) {
+            Text(stringResource(R.string.lyrics_larger), color = colors.content)
+        }
+    }
+}
+
+/** [this] with its font size and line height times [scale]. */
+private fun TextStyle.scaled(scale: Float): TextStyle = copy(fontSize = fontSize * scale, lineHeight = lineHeight * scale)
+
 /**
  * Moves the lines half a second earlier or later. The middle shows how far they are moved, and
  * tapping it puts them back.
@@ -121,11 +176,7 @@ private fun Timing(offsetMs: Long, colors: CoverColors, onShift: (Long) -> Unit,
     val earlier = stringResource(R.string.lyrics_earlier_label)
     val later = stringResource(R.string.lyrics_later_label)
     val reset = stringResource(R.string.lyrics_timing_reset)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxWidth().padding(top = m.gapSm),
-    ) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = { onShift(-STEP_MS) }, modifier = Modifier.semantics { contentDescription = earlier }) {
             Text(stringResource(R.string.lyrics_earlier), color = colors.content)
         }

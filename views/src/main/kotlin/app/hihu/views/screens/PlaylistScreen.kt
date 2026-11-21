@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,6 +39,7 @@ import app.hihu.state.Playback
 import app.hihu.state.Playlists
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
+import app.hihu.views.chrome.SelectionBar
 import app.hihu.views.R
 import app.hihu.views.shared.ButtonLabel
 import app.hihu.views.shared.HeaderButtons
@@ -65,6 +67,7 @@ fun PlaylistScreen(
 ) {
     val m = HihuTheme.metrics
     val all by playlists.all.collectAsStateWithLifecycle()
+    LaunchedEffect(id) { playlists.open(id) }
     val songs by remember(id) { playlists.songs(id) }.collectAsStateWithLifecycle(initialValue = null)
     val summary = all.firstOrNull { it.id == id }
     var renaming by remember { mutableStateOf(false) }
@@ -114,6 +117,7 @@ fun PlaylistScreen(
                 onPlay = { index -> playback.play(list, index) },
                 header = { Header(summary.name, summary.artworkUri, list, playback) },
                 onMove = { from, to -> playlists.move(id, from, to) },
+                selectionBar = { chosen, done -> SelectionBar(chosen, done) },
                 menu = { song, index, dismiss ->
                     CommonSongItems(song, dismiss)
                     MenuItem(R.string.remove_from_playlist) {

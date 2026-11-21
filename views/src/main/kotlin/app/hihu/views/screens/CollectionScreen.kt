@@ -38,6 +38,7 @@ import app.hihu.state.Playback
 import app.hihu.state.Radio
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
+import app.hihu.views.chrome.SelectionBar
 import app.hihu.views.R
 import app.hihu.views.shared.ButtonLabel
 import app.hihu.views.shared.HeaderButtons
@@ -99,6 +100,7 @@ fun CollectionScreen(
                 onPlay = { index -> play(songs.items, index, false) },
                 more = songs.more(open::loadMore),
                 header = { Header(open, songs.items, songs.total, play, artistRadio, radioLoading) },
+                selectionBar = { chosen, done -> SelectionBar(chosen, done) },
                 menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
             )
         }

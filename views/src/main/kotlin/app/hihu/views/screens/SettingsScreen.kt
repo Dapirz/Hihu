@@ -41,11 +41,15 @@ import app.hihu.views.shared.Artwork
 import app.hihu.state.Appearance
 import app.hihu.state.Downloads
 import app.hihu.state.HiddenSongs
+import app.hihu.state.BugReport
+import android.content.Intent
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -83,6 +87,7 @@ fun SettingsScreen(
     preferences: Preferences,
     downloads: Downloads,
     hidden: HiddenSongs,
+    bugReport: BugReport,
     account: Account,
     onSignIn: () -> Unit,
     onBack: () -> Unit,
@@ -92,6 +97,8 @@ fun SettingsScreen(
     val quality by preferences.quality.collectAsStateWithLifecycle()
     val qualityMobile by preferences.qualityMobile.collectAsStateWithLifecycle()
     val resumeOnConnect by preferences.resumeOnConnect.collectAsStateWithLifecycle()
+    val qualityDownload by preferences.qualityDownload.collectAsStateWithLifecycle()
+    val downloadLikes by preferences.downloadLikes.collectAsStateWithLifecycle()
     val palette by preferences.palette.collectAsStateWithLifecycle()
     val black by preferences.black.collectAsStateWithLifecycle()
     val normalize by preferences.normalize.collectAsStateWithLifecycle()
@@ -109,7 +116,15 @@ fun SettingsScreen(
                 modifier = Modifier.padding(start = m.gapSm),
             )
         }
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = m.gapXl)) {
+        // On a wide screen the settings keep a readable width, centred.
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .wrapContentWidth()
+                .widthIn(max = m.contentMaxWidth)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = m.gapXl),
+        ) {
             SettingsCard(R.string.section_account) {
                 AccountSection(account, onSignIn)
             }
@@ -204,6 +219,29 @@ fun SettingsScreen(
                 HiddenSection(hidden)
                 CardDivider()
                 DownloadsSection(downloads)
+                Toggle(
+                    title = R.string.download_likes,
+                    detail = R.string.download_likes_detail,
+                    checked = downloadLikes,
+                    onChange = preferences::setDownloadLikes,
+                )
+                SubHeading(R.string.quality_download)
+                Choices(
+                    options = AudioQuality.entries,
+                    selected = qualityDownload,
+                    label = {
+                        when (it) {
+                            AudioQuality.High -> R.string.quality_high
+                            AudioQuality.Normal -> R.string.quality_normal
+                            AudioQuality.DataSaver -> R.string.quality_saver
+                        }
+                    },
+                    detail = { null },
+                    onSelect = preferences::setQualityDownload,
+                )
+            }
+            SettingsCard(R.string.settings_about) {
+                SendLog(bugReport)
             }
         }
     }
@@ -234,6 +272,29 @@ private fun CardDivider() {
         color = MaterialTheme.colorScheme.outlineVariant,
         modifier = Modifier.padding(horizontal = m.gapLg, vertical = m.gapSm),
     )
+}
+
+/** The app's version, and a button that shares its log for a bug report. */
+@Composable
+private fun SendLog(bugReport: BugReport) {
+    val m = HihuTheme.metrics
+    val context = LocalContext.current
+    val title = stringResource(R.string.send_log)
+    Text(
+        stringResource(R.string.send_log_detail),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = m.gapLg, vertical = m.gapSm),
+    )
+    TextButton(
+        onClick = {
+            bugReport.build { text ->
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                context.startActivity(Intent.createChooser(send, title))
+            }
+        },
+        modifier = Modifier.padding(horizontal = m.gapMd),
+    ) { Text(title) }
 }
 
 /** A smaller heading inside a card, for one part of it. */

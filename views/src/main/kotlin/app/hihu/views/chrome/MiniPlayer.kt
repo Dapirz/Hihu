@@ -2,6 +2,14 @@ package app.hihu.views.chrome
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
@@ -35,7 +43,8 @@ import app.hihu.views.shared.rememberCoverColors
 
 /**
  * The floating pill above the bottom edge while something is loaded, tinted by the cover, with a
- * thin line along its bottom for how far the song has played. Tapping it opens the full player.
+ * thin line along its bottom for how far the song has played. Tapping it opens the full player;
+ * swiping it left plays the next song and right the previous one.
  */
 @Composable
 fun MiniPlayer(
@@ -53,11 +62,30 @@ fun MiniPlayer(
         contentColor = colors.content,
         disabledContentColor = colors.contentMuted,
     )
+    val current by rememberUpdatedState(now)
+    val next by rememberUpdatedState(onNext)
+    val previous by rememberUpdatedState(onPrevious)
+    var shift by remember { mutableFloatStateOf(0f) }
     Surface(
         color = colors.tint,
         contentColor = colors.content,
         shape = RoundedCornerShape(m.radiusPill),
-        modifier = modifier.padding(horizontal = m.gapSm, vertical = m.gapSm),
+        modifier = modifier
+            .padding(horizontal = m.gapSm, vertical = m.gapSm)
+            .graphicsLayer { translationX = shift }
+            .pointerInput(Unit) {
+                val limit = m.swipeDistance.toPx()
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        when {
+                            shift < -limit && current.hasNext -> next()
+                            shift > limit && current.hasPrevious -> previous()
+                        }
+                        shift = 0f
+                    },
+                    onDragCancel = { shift = 0f },
+                ) { _, dx -> shift += dx }
+            },
     ) {
         Box {
             Row(
