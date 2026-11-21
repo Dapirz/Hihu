@@ -41,4 +41,7 @@ interface MusicAccount {
 
     /** Likes [song] on the account, or takes the like away. Throws when it cannot be reached. */
     suspend fun setLiked(song: Song, liked: Boolean)
+
+    /** Dislikes [song] on the account, or takes the dislike away. Throws when it cannot be reached. */
+    suspend fun setDisliked(song: Song, disliked: Boolean)
 }

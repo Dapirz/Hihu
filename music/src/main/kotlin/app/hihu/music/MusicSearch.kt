@@ -42,6 +42,12 @@ interface MusicRadio {
 
     /** The first page of mix [collection] as it is queued to play. Like a radio, it does not end. */
     suspend fun mix(collection: Collection): Page<Song>
+
+    /** Whether [collection], an artist, has a radio: songs like theirs, by them and by others. */
+    fun hasArtistRadio(collection: Collection): Boolean
+
+    /** The first page of artist [collection]'s radio. Like a song's radio, it does not end. */
+    suspend fun artistRadio(collection: Collection): Page<Song>
 }
 
 /** Reads the songs inside a [Collection] that the same provider returned. */

@@ -45,6 +45,15 @@ internal class InnerTube(
         call(endpoint, "") { `object`("target").value("videoId", videoId).end() }
     }
 
+    /** Dislikes [videoId] on the signed-in account, or removes the dislike, as YouTube Music's button does. */
+    fun dislike(videoId: String, disliked: Boolean) {
+        val endpoint = when (disliked) {
+            true -> "like/dislike"
+            false -> "like/removelike"
+        }
+        call(endpoint, "") { `object`("target").value("videoId", videoId).end() }
+    }
+
     /** POSTs to `account/account_menu`, which names the signed-in account. */
     fun accountMenu(): JsonObject = call("account/account_menu", "") {}
 

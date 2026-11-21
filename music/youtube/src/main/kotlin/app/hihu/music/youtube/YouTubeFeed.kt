@@ -61,6 +61,16 @@ internal class YouTubeFeed(private val api: InnerTube) {
         return playlistSongs(chart).items
     }
 
+    /**
+     * The list id of the radio on artist [channelId]'s page, from its Radio button, or null when
+     * the page has none.
+     */
+    fun artistRadioId(channelId: String): String? =
+        findObject(api.browse(browseId = channelId), "startRadioButton")?.let { findString(it, "playlistId") }
+
+    /** Dislikes [videoId] or takes the dislike back; [api] must carry a session. */
+    fun dislike(videoId: String, disliked: Boolean) = api.dislike(videoId, disliked)
+
     /** Likes or unlikes [videoId]; [api] must carry a session. */
     fun like(videoId: String, liked: Boolean) = api.like(videoId, liked)
 
