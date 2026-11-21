@@ -39,6 +39,8 @@ import app.hihu.state.Playlists
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
 import app.hihu.views.R
+import app.hihu.views.shared.ButtonLabel
+import app.hihu.views.shared.HeaderButtons
 import app.hihu.views.chrome.CommonSongItems
 import app.hihu.views.chrome.ConfirmDialog
 import app.hihu.views.chrome.LocalSongActions
@@ -180,14 +182,14 @@ private fun Header(name: String, artworkUri: String?, songs: List<Song>, playbac
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = m.gapXs),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(m.gapMd), modifier = Modifier.padding(top = m.gapLg)) {
+        HeaderButtons(Modifier.padding(top = m.gapLg)) {
             Button(onClick = { playback.playAll(songs, shuffle = false) }, enabled = songs.isNotEmpty()) {
                 Icon(painterResource(Icons.play), contentDescription = null, Modifier.size(m.iconSm))
-                Text(stringResource(R.string.play_all), Modifier.padding(start = m.gapSm))
+                ButtonLabel(stringResource(R.string.play_all))
             }
             FilledTonalButton(onClick = { playback.playAll(songs, shuffle = true) }, enabled = songs.isNotEmpty()) {
                 Icon(painterResource(Icons.shuffle), contentDescription = null, Modifier.size(m.iconSm))
-                Text(stringResource(R.string.shuffle), Modifier.padding(start = m.gapSm))
+                ButtonLabel(stringResource(R.string.shuffle))
             }
         }
     }

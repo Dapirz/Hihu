@@ -22,6 +22,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +39,8 @@ import app.hihu.state.Radio
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
 import app.hihu.views.R
+import app.hihu.views.shared.ButtonLabel
+import app.hihu.views.shared.HeaderButtons
 import app.hihu.views.chrome.CommonSongItems
 import app.hihu.views.shared.Artwork
 import app.hihu.views.shared.Message
@@ -62,6 +66,10 @@ fun CollectionScreen(
     val songs by open.songs.collectAsStateWithLifecycle()
     val padding = PaddingValues(bottom = contentPadding.calculateBottomPadding())
     val mix = remember(open.collection) { radio.isMix(open.collection) }
+    val radioLoading by radio.startingArtist.collectAsStateWithLifecycle()
+    val artistRadio = remember(open.collection) {
+        { radio.startArtist(open.collection) }.takeIf { radio.hasArtistRadio(open.collection) }
+    }
     // A null start is Play all, which also turns shuffle off.
     val play = { list: List<Song>, start: Int?, shuffle: Boolean ->
         when {
@@ -79,7 +87,7 @@ fun CollectionScreen(
         }
         when {
             songs.loading -> Column {
-                Header(open, songs = emptyList(), total = null, play = play)
+                Header(open, songs = emptyList(), total = null, play = play, onRadio = artistRadio, radioLoading = radioLoading)
                 Box(Modifier.fillMaxWidth().padding(m.gapXl), Alignment.Center) { CircularProgressIndicator() }
             }
             songs.failed -> Message(stringResource(R.string.collection_failed), stringResource(R.string.retry), open::retry)
@@ -90,7 +98,7 @@ fun CollectionScreen(
                 padding = padding,
                 onPlay = { index -> play(songs.items, index, false) },
                 more = songs.more(open::loadMore),
-                header = { Header(open, songs.items, songs.total, play) },
+                header = { Header(open, songs.items, songs.total, play, artistRadio, radioLoading) },
                 menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
             )
         }
@@ -98,7 +106,14 @@ fun CollectionScreen(
 }
 
 @Composable
-private fun Header(open: OpenCollection, songs: List<Song>, total: Long?, play: (List<Song>, Int?, Boolean) -> Unit) {
+private fun Header(
+    open: OpenCollection,
+    songs: List<Song>,
+    total: Long?,
+    play: (List<Song>, Int?, Boolean) -> Unit,
+    onRadio: (() -> Unit)? = null,
+    radioLoading: Boolean = false,
+) {
     val m = HihuTheme.metrics
     // An album's length is only known once its page is open; an artist's count is subscribers.
     val collection = when (open.collection.kind) {
@@ -132,17 +147,29 @@ private fun Header(open: OpenCollection, songs: List<Song>, total: Long?, play: 
                 modifier = Modifier.padding(top = m.gapXs),
             )
         }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(m.gapMd),
-            modifier = Modifier.padding(top = m.gapLg),
-        ) {
+        HeaderButtons(Modifier.padding(top = m.gapLg)) {
             Button(onClick = { play(songs, null, false) }, enabled = songs.isNotEmpty()) {
                 Icon(painterResource(Icons.play), contentDescription = null, Modifier.size(m.iconSm))
-                Text(stringResource(R.string.play_all), Modifier.padding(start = m.gapSm))
+                ButtonLabel(stringResource(R.string.play_all))
             }
             FilledTonalButton(onClick = { play(songs, null, true) }, enabled = songs.isNotEmpty()) {
                 Icon(painterResource(Icons.shuffle), contentDescription = null, Modifier.size(m.iconSm))
-                Text(stringResource(R.string.shuffle), Modifier.padding(start = m.gapSm))
+                ButtonLabel(stringResource(R.string.shuffle))
+            }
+            if (onRadio != null) {
+                val label = stringResource(R.string.artist_radio_label)
+                // The radio's first page takes a moment; a spinner in place of the icon shows it is coming.
+                FilledTonalButton(
+                    onClick = onRadio,
+                    enabled = !radioLoading,
+                    modifier = Modifier.semantics { contentDescription = label },
+                ) {
+                    when (radioLoading) {
+                        true -> CircularProgressIndicator(Modifier.size(m.iconSm), strokeWidth = m.spinnerStroke)
+                        false -> Icon(painterResource(Icons.radio), contentDescription = null, Modifier.size(m.iconSm))
+                    }
+                    ButtonLabel(stringResource(R.string.artist_radio))
+                }
             }
         }
     }

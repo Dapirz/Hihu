@@ -87,7 +87,8 @@
     <string name="palette_amber">Amber</string>
     <string name="theme_black">Pure black</string>
     <string name="theme_black_detail">Black background in the dark theme. Saves battery on AMOLED screens.</string>
-    <string name="settings_quality">Streaming quality</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_playback">Playback</string>
     <string name="quality_high">High</string>
     <string name="quality_high_detail">The best YouTube offers, about 160 kbps. Uses the most data.</string>
     <string name="quality_normal">Normal</string>
@@ -180,6 +181,24 @@
     <string name="account_library_empty">Nothing here yet.</string>
     <string name="account_likes_note">While you\'re signed in, a heart you give in Hihu is also a like on your account. Likes made in YouTube Music don\'t come into Hihu\'s Favorites.</string>
     <string name="normalize">Even out volume</string>
+    <string name="quality_wifi">Streaming quality on Wi-Fi</string>
+    <string name="quality_mobile">Streaming quality on mobile data</string>
+    <string name="resume_on_connect">Play when headphones connect</string>
+    <string name="resume_on_connect_detail">When Bluetooth or wired headphones connect, a paused song carries on. Only while Hihu is still running in the background.</string>
+    <string name="hide_song">Don\'t play this again</string>
+    <string name="hidden_songs">Hidden songs</string>
+    <string name="hidden_songs_show">See the list</string>
+    <string name="hidden_songs_empty">No songs are hidden.</string>
+    <string name="unhide_song">Show again</string>
+    <string name="done">Done</string>
+    <string name="home_most_played">On repeat</string>
+    <string name="artist_radio">Radio</string>
+    <string name="artist_radio_label">Play a radio of songs like this artist</string>
+    <string name="queue_save">Save as playlist</string>
+    <plurals name="hidden_songs_count">
+        <item quantity="one">%d song hidden</item>
+        <item quantity="other">%d songs hidden</item>
+    </plurals>
     <string name="autoplay">Keep playing</string>
     <string name="autoplay_detail">When a playlist or album ends, go on with songs like the last one from YouTube Music. Not for files on the phone, or with shuffle or repeat on.</string>
     <string name="normalize_detail">Songs louder than YouTube\'s usual level are turned down, so one song is not much louder than the next. YouTube songs only.</string>

@@ -84,7 +84,8 @@
     <string name="palette_amber">Jingga</string>
     <string name="theme_black">Hitam pekat</string>
     <string name="theme_black_detail">Latar hitam di tema gelap. Menghemat baterai di layar AMOLED.</string>
-    <string name="settings_quality">Kualitas streaming</string>
+    <string name="settings_appearance">Tampilan</string>
+    <string name="settings_playback">Pemutaran</string>
     <string name="quality_high">Tinggi</string>
     <string name="quality_high_detail">Kualitas terbaik dari YouTube, sekitar 160 kbps. Paling boros kuota.</string>
     <string name="quality_normal">Normal</string>
@@ -175,6 +176,23 @@
     <string name="account_library_empty">Belum ada apa-apa di sini.</string>
     <string name="account_likes_note">Selama kamu masuk, hati yang kamu beri di Hihu juga jadi suka di akunmu. Suka yang dibuat di YouTube Music tidak masuk ke Favorit Hihu.</string>
     <string name="normalize">Ratakan volume</string>
+    <string name="quality_wifi">Kualitas streaming lewat Wi-Fi</string>
+    <string name="quality_mobile">Kualitas streaming lewat data seluler</string>
+    <string name="resume_on_connect">Lanjut saat earphone tersambung</string>
+    <string name="resume_on_connect_detail">Saat earphone Bluetooth atau kabel tersambung, lagu yang dijeda langsung lanjut. Hanya selama Hihu masih berjalan di latar belakang.</string>
+    <string name="hide_song">Jangan putar lagi</string>
+    <string name="hidden_songs">Lagu yang disembunyikan</string>
+    <string name="hidden_songs_show">Lihat daftarnya</string>
+    <string name="hidden_songs_empty">Belum ada lagu yang disembunyikan.</string>
+    <string name="unhide_song">Tampilkan lagi</string>
+    <string name="done">Selesai</string>
+    <string name="home_most_played">Sering kamu putar</string>
+    <string name="artist_radio">Radio</string>
+    <string name="artist_radio_label">Putar radio lagu yang mirip artis ini</string>
+    <string name="queue_save">Simpan sebagai playlist</string>
+    <plurals name="hidden_songs_count">
+        <item quantity="other">%d lagu disembunyikan</item>
+    </plurals>
     <string name="autoplay">Lanjut otomatis</string>
     <string name="autoplay_detail">Setelah playlist atau album habis, lanjut dengan lagu yang mirip lagu terakhir dari YouTube Music. Tidak untuk file di HP, atau saat Acak atau Ulangi menyala.</string>
     <string name="normalize_detail">Lagu yang lebih keras dari tingkat biasa YouTube dipelankan, supaya satu lagu tidak jauh lebih keras dari lagu berikutnya. Hanya lagu dari YouTube.</string>

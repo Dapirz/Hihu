@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.state.NowPlaying
+import app.hihu.music.Song
 import app.hihu.state.Playback
 import app.hihu.state.Radio
 import app.hihu.ui.HihuTheme
@@ -36,7 +37,7 @@ import app.hihu.views.shared.SongList
  * The song playing now is in the accent colour.
  */
 @Composable
-fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onClose: () -> Unit) {
+fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onSave: (List<Song>) -> Unit, onClose: () -> Unit) {
     val m = HihuTheme.metrics
     val queue by playback.queue.collectAsStateWithLifecycle()
     val seed by radio.seed.collectAsStateWithLifecycle()
@@ -46,7 +47,7 @@ fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onClose: () -
             IconButton(onClick = onClose) {
                 Icon(painterResource(Icons.collapse), stringResource(R.string.back), Modifier.size(m.iconLg))
             }
-            Column(Modifier.padding(start = m.gapSm)) {
+            Column(Modifier.weight(1f).padding(start = m.gapSm)) {
                 Text(stringResource(R.string.queue), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 val count = pluralStringResource(R.plurals.library_count, queue.size, queue.size)
                 Text(
@@ -54,6 +55,9 @@ fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onClose: () -
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            IconButton(onClick = { onSave(queue) }, enabled = queue.isNotEmpty()) {
+                Icon(painterResource(Icons.add), stringResource(R.string.queue_save), Modifier.size(m.iconMd))
             }
         }
         when (queue.isEmpty()) {

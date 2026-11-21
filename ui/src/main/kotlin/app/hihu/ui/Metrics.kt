@@ -36,9 +36,12 @@ data class Metrics(
     val divider: Dp = 1.dp,
     val seekTrack: Dp = 4.dp,
     val seekThumb: Dp = 16.dp,
+    val spinnerStroke: Dp = 2.dp,
     val miniProgress: Dp = 2.dp,
     /** How far the player must be dragged for a swipe to count: down to close, sideways to skip. */
     val swipeDistance: Dp = 96.dp,
+    /** The tallest a list inside a dialog grows before it scrolls. */
+    val dialogListMax: Dp = 360.dp,
     val none: Dp = 0.dp,
     /** How close to a list edge a dragged row starts it scrolling, and how far per frame. */
     val reorderEdge: Dp = 72.dp,

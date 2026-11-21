@@ -35,4 +35,5 @@ object Icons {
     val check = R.drawable.ic_check
     val history = R.drawable.ic_history
     val link = R.drawable.ic_link
+    val radio = R.drawable.ic_radio
 }

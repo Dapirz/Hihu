@@ -61,6 +61,7 @@ fun HomeScreen(
             items(personal, key = { it::class.simpleName.orEmpty() }) { row ->
                 val title = when (row) {
                     is PersonalRow.KeepListening -> stringResource(R.string.home_keep_listening)
+                    is PersonalRow.MostPlayed -> stringResource(R.string.home_most_played)
                     is PersonalRow.Forgotten -> stringResource(R.string.home_forgotten)
                     is PersonalRow.Similar -> stringResource(R.string.home_similar, row.artist)
                 }

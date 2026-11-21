@@ -56,6 +56,7 @@ import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
 import app.hihu.views.R
 import app.hihu.views.chrome.DownloadItems
+import app.hihu.views.chrome.HideItem
 import app.hihu.views.chrome.LocalSongActions
 import app.hihu.views.chrome.MenuItem
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -285,7 +286,7 @@ private fun SwipeToSkip(now: NowPlaying, playback: Playback, content: @Composabl
     }
 }
 
-/** More for the playing song: add it to a playlist, or download it. */
+/** More for the playing song: add it to a playlist, download it, or never play it again. */
 @Composable
 private fun SongMenu(now: NowPlaying) {
     val m = HihuTheme.metrics
@@ -302,6 +303,7 @@ private fun SongMenu(now: NowPlaying) {
                 actions.pickPlaylist(listOf(song))
             }
             DownloadItems(song) { open = false }
+            HideItem(song) { open = false }
         }
     }
 }

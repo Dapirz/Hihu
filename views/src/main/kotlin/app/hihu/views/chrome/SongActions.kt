@@ -11,6 +11,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.music.Song
 import app.hihu.state.DownloadStatus
 import app.hihu.state.Downloads
+import app.hihu.state.HiddenSongs
 import app.hihu.state.Favorites
 import app.hihu.state.Playback
 import app.hihu.views.R
@@ -23,6 +24,7 @@ class SongActions(
     val playback: Playback,
     val favorites: Favorites,
     val downloads: Downloads,
+    val hidden: HiddenSongs,
     val pickPlaylist: (List<Song>) -> Unit,
     /** Starts downloading, asking for the notification permission first when it is missing. */
     val download: (List<Song>) -> Unit,
@@ -52,6 +54,17 @@ fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
         actions.pickPlaylist(listOf(song))
     }
     DownloadItems(song, dismiss)
+    HideItem(song, dismiss)
+}
+
+/** "Don't play this again": the song leaves the queue and never comes up in a radio again. */
+@Composable
+fun HideItem(song: Song, dismiss: () -> Unit) {
+    val actions = LocalSongActions.current
+    MenuItem(R.string.hide_song) {
+        actions.hidden.hide(song)
+        dismiss()
+    }
 }
 
 /** Download, download again or remove the download, for a song its provider can download. */

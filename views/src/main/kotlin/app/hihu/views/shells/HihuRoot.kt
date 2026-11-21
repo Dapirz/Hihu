@@ -74,6 +74,7 @@ import app.hihu.views.screens.SearchScreen
 import app.hihu.views.screens.SettingsScreen
 import app.hihu.views.screens.SignInScreen
 import app.hihu.state.Account
+import app.hihu.state.HiddenSongs
 
 /** Everything the UI reads and drives, built once by the app module. */
 class AppState(
@@ -92,6 +93,7 @@ class AppState(
     val moods: Moods,
     val playlistImport: PlaylistImport,
     val downloads: Downloads,
+    val hidden: HiddenSongs,
     val preferences: Preferences,
     /** The YouTube Music account, signed in or not. */
     val account: Account,
@@ -131,6 +133,7 @@ fun HihuRoot(app: AppState) {
             playback = app.playback,
             favorites = app.favorites,
             downloads = app.downloads,
+            hidden = app.hidden,
             pickPlaylist = { picking = it },
             download = { songs ->
                 // The progress notification needs this on Android 13 and newer; downloads run either way.
@@ -156,7 +159,12 @@ fun HihuRoot(app: AppState) {
 
     HihuTheme(dark = dark, colors = palette.colors, black = black) {
         CompositionLocalProvider(LocalSongActions provides actions, LocalSongBadges provides badges) {
-            Screens(app, onNewPlaylist = { naming = emptyList() }, onImportPlaylist = { importing = "" })
+            Screens(
+                app,
+                onNewPlaylist = { naming = emptyList() },
+                onImportPlaylist = { importing = "" },
+                onSaveQueue = { naming = it },
+            )
             Dialogs(app, picking, naming, onPicking = { picking = it }, onNaming = { naming = it })
             importing?.let { link ->
                 ImportDialog(
@@ -174,7 +182,7 @@ fun HihuRoot(app: AppState) {
 }
 
 @Composable
-private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: () -> Unit) {
+private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: () -> Unit, onSaveQueue: (List<Song>) -> Unit) {
     val navigator = app.navigator
     val stack by navigator.stack.collectAsStateWithLifecycle()
     val now by app.playback.state.collectAsStateWithLifecycle()
@@ -201,12 +209,13 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
             PlayerScreen(now, app.playback, app.lyrics, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
         }
         Destination.Queue -> Scaffold { _ ->
-            QueueScreen(app.playback, app.radio, now, onClose = { navigator.pop() })
+            QueueScreen(app.playback, app.radio, now, onSave = onSaveQueue, onClose = { navigator.pop() })
         }
         Destination.Settings -> Scaffold { _ ->
             SettingsScreen(
                 app.preferences,
                 app.downloads,
+                app.hidden,
                 app.account,
                 onSignIn = { navigator.push(Destination.SignIn) },
                 onBack = { navigator.pop() },
