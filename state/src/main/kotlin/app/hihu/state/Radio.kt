@@ -53,6 +53,9 @@ class Radio(
         }
     }
 
+    /** Whether [song]'s provider can make a radio from it; files on the phone cannot. */
+    fun hasRadio(song: Song): Boolean = source.hasRadio(song)
+
     /** Plays [song] now, followed by its radio when its provider has one. */
     fun start(song: Song) {
         job?.cancel()

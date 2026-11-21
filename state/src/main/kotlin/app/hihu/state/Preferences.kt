@@ -92,6 +92,27 @@ class Preferences(context: Context) {
         prefs.edit().putString(KEY_QUALITY_MOBILE, value.name).apply()
     }
 
+    private val sorts = SortedList.entries.associateWith { list ->
+        MutableStateFlow(read(sortKey(list), defaultSort(list)))
+    }
+    private val sortFlows = sorts.mapValues { it.value.asStateFlow() }
+
+    /** How [list] is ordered in the library. */
+    fun sort(list: SortedList): StateFlow<LibrarySort> = sortFlows.getValue(list)
+
+    fun setSort(list: SortedList, value: LibrarySort) {
+        sorts.getValue(list).value = value
+        prefs.edit().putString(sortKey(list), value.name).apply()
+    }
+
+    private fun sortKey(list: SortedList) = "sort_" + list.name.lowercase()
+
+    /** Files on the phone have no date added here, so they start by title; the rest newest first. */
+    private fun defaultSort(list: SortedList) = when (list) {
+        SortedList.Device -> LibrarySort.Title
+        SortedList.Favorites, SortedList.Downloads -> LibrarySort.Added
+    }
+
     /** Reads an enum by name, falling back to [default] when unset or no longer known. */
     private inline fun <reified E : Enum<E>> read(key: String, default: E): E =
         prefs.getString(key, null)?.let { name -> enumValues<E>().firstOrNull { it.name == name } } ?: default
@@ -108,3 +129,9 @@ class Preferences(context: Context) {
         const val KEY_RESUME_ON_CONNECT = "resume_on_connect"
     }
 }
+
+/** How a list in the library is ordered: as it was added (newest first), by title, or by artist. */
+enum class LibrarySort { Added, Title, Artist }
+
+/** The library lists the user can put in another order. */
+enum class SortedList { Favorites, Downloads, Device }

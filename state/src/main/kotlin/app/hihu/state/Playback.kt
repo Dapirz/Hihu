@@ -248,6 +248,25 @@ class Playback(
         }
     }
 
+    /** Takes out the songs before the one playing. */
+    fun removePlayed() {
+        val c = controller ?: return
+        val playing = c.currentMediaItemIndex
+        if (playing > 0) c.removeMediaItems(0, playing)
+    }
+
+    /**
+     * Takes out the songs after the one playing. This also ends a radio, which would otherwise
+     * fill the queue straight back up.
+     */
+    fun clearUpcoming() {
+        val c = controller ?: return
+        val from = c.currentMediaItemIndex + 1
+        if (from >= c.mediaItemCount) return
+        generation++
+        c.removeMediaItems(from, c.mediaItemCount)
+    }
+
     fun move(from: Int, to: Int) {
         val c = controller ?: return
         if (from in 0 until c.mediaItemCount && to in 0 until c.mediaItemCount) c.moveMediaItem(from, to)
