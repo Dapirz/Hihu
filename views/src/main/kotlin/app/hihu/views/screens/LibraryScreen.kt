@@ -123,7 +123,7 @@ fun LibraryScreen(
         ScreenTitle(
             stringResource(R.string.brand),
             onSettings = onSettings,
-            modifier = Modifier.padding(top = m.gapLg),
+            modifier = Modifier.padding(top = m.titleGap),
             onSearch = when (searching) {
                 true -> null
                 false -> ({ searching = true })

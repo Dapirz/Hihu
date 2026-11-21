@@ -53,6 +53,8 @@ fun HihuTheme(
     dark: Boolean? = null,
     colors: ThemeColors = ThemeColors.Wallpaper,
     black: Boolean = false,
+    /** Whether the window is short, so the views draw with [CompactMetrics]. */
+    compact: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val dark = dark ?: isSystemInDarkTheme()
@@ -68,7 +70,11 @@ fun HihuTheme(
         false -> base
     }
     ThemeSystemBars(dark)
-    CompositionLocalProvider(LocalMetrics provides Metrics(), LocalDarkTheme provides dark) {
+    val metrics = when (compact) {
+        true -> CompactMetrics
+        false -> Metrics()
+    }
+    CompositionLocalProvider(LocalMetrics provides metrics, LocalDarkTheme provides dark) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
 }

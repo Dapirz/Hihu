@@ -69,7 +69,7 @@ fun ExploreScreen(
     LaunchedEffect(explore) { explore.open() }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenTitle(stringResource(R.string.tab_explore), onSettings = onSettings, modifier = Modifier.padding(vertical = m.gapLg))
+        ScreenTitle(stringResource(R.string.tab_explore), onSettings = onSettings, modifier = Modifier.padding(vertical = m.titleGap))
         LazyColumn(contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
             val feed = page.feed
             when {

@@ -50,6 +50,7 @@ Early. What works today:
 - even out volume (off by default): songs mastered louder than YouTube's usual level are
   turned down
 - light or dark theme, and three streaming qualities, set apart for Wi-Fi and mobile data
+- fits small windows, like Samsung's pop-up view over a game, by drawing everything smaller
 - notification, lockscreen and headset controls; a headset's play button picks up the last
   queue after Hihu was closed, and optionally a paused song carries on when headphones connect
 

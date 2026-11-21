@@ -31,7 +31,10 @@ fun ScreenTitle(text: String, onSettings: () -> Unit, modifier: Modifier = Modif
     ) {
         Text(
             text,
-            style = MaterialTheme.typography.headlineMedium,
+            style = when (m.compact) {
+                true -> MaterialTheme.typography.titleLarge
+                false -> MaterialTheme.typography.headlineMedium
+            },
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f),

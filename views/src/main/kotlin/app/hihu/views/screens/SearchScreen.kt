@@ -101,7 +101,7 @@ fun SearchScreen(
         ScreenTitle(
             stringResource(R.string.tab_search),
             onSettings = onSettings,
-            modifier = Modifier.padding(top = m.gapLg, bottom = m.gapMd),
+            modifier = Modifier.padding(top = m.titleGap, bottom = if (m.compact) m.gapXs else m.gapMd),
         )
         SearchField(
             text = text,

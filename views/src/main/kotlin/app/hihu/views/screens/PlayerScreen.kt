@@ -151,11 +151,14 @@ fun PlayerScreen(
                 val controls: @Composable () -> Unit = {
                     Text(
                         now.title,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = when (m.compact) {
+                            true -> MaterialTheme.typography.titleMedium
+                            false -> MaterialTheme.typography.headlineSmall
+                        },
                         textAlign = TextAlign.Center,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = m.gapXl),
+                        modifier = Modifier.padding(top = if (m.compact) m.gapSm else m.gapXl),
                     )
                     Text(
                         now.artist ?: stringResource(R.string.unknown_artist),
@@ -168,7 +171,7 @@ fun PlayerScreen(
                     SeekBar(now, colors, onSeek = playback::seekTo)
                     Transport(now, playback, colors)
                 }
-                when (maxWidth > maxHeight) {
+                when (maxWidth > maxHeight && maxWidth >= m.twoColumnMin) {
                     true -> Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                         stage(Modifier.weight(1f).fillMaxHeight())
                         Column(
@@ -202,7 +205,7 @@ private fun SeekBar(now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit
         inactiveTrackColor = colors.contentMuted.copy(alpha = INACTIVE_TRACK_ALPHA),
     )
 
-    Column(Modifier.fillMaxWidth().padding(top = m.gapXl)) {
+    Column(Modifier.fillMaxWidth().padding(top = if (m.compact) m.gapXs else m.gapXl)) {
         Slider(
             value = position.coerceIn(0f, duration),
             onValueChange = { dragging = it },
@@ -246,7 +249,10 @@ private fun Transport(now: NowPlaying, playback: Playback, colors: CoverColors) 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth().padding(top = m.gapLg, bottom = m.gapXxl),
+        modifier = Modifier.fillMaxWidth().padding(
+            top = if (m.compact) m.none else m.gapLg,
+            bottom = if (m.compact) m.gapSm else m.gapXxl,
+        ),
     ) {
         IconButton(
             onClick = playback::toggleShuffle,
@@ -256,7 +262,7 @@ private fun Transport(now: NowPlaying, playback: Playback, colors: CoverColors) 
             Icon(painterResource(Icons.shuffle), stringResource(R.string.shuffle), Modifier.size(m.iconMd))
         }
         IconButton(onClick = playback::previous, enabled = now.hasPrevious, colors = toggled) {
-            Icon(painterResource(Icons.previous), stringResource(R.string.previous), Modifier.size(m.iconXl))
+            Icon(painterResource(Icons.previous), stringResource(R.string.previous), Modifier.size(if (m.compact) m.iconLg else m.iconXl))
         }
         IconButton(onClick = playback::toggle, colors = toggled, modifier = Modifier.size(m.playButton)) {
             val (icon, label) = when (now.isPlaying) {
@@ -266,7 +272,7 @@ private fun Transport(now: NowPlaying, playback: Playback, colors: CoverColors) 
             Icon(painterResource(icon), stringResource(label), Modifier.size(m.playButton * PLAY_ICON_SCALE))
         }
         IconButton(onClick = playback::next, enabled = now.hasNext, colors = toggled) {
-            Icon(painterResource(Icons.next), stringResource(R.string.next), Modifier.size(m.iconXl))
+            Icon(painterResource(Icons.next), stringResource(R.string.next), Modifier.size(if (m.compact) m.iconLg else m.iconXl))
         }
         val (repeatIcon, repeatLabel) = when (now.repeat) {
             Repeat.Off -> Icons.repeat to R.string.repeat_off

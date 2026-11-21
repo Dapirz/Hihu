@@ -57,7 +57,7 @@ fun HomeScreen(
     LoadMoreNearEnd(list, more)
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenTitle(stringResource(R.string.brand), onSettings = onSettings, modifier = Modifier.padding(vertical = m.gapLg))
+        ScreenTitle(stringResource(R.string.brand), onSettings = onSettings, modifier = Modifier.padding(vertical = m.titleGap))
         LazyColumn(state = list, contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
             items(personal, key = { it::class.simpleName.orEmpty() }) { row ->
                 val title = when (row) {

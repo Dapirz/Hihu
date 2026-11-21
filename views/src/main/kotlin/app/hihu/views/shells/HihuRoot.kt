@@ -88,6 +88,12 @@ import app.hihu.views.screens.SearchScreen
 import app.hihu.views.screens.SettingsScreen
 import app.hihu.views.screens.SignInScreen
 import app.hihu.state.Account
+import app.hihu.ui.COMPACT_HEIGHT
+import app.hihu.ui.COMPACT_SCALE
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
 import app.hihu.state.HiddenSongs
 import app.hihu.state.BugReport
 import app.hihu.music.PlaylistLinks
@@ -179,25 +185,37 @@ fun HihuRoot(app: AppState) {
         }.toMap()
     }
 
-    HihuTheme(dark = dark, colors = palette.colors, black = black) {
-        CompositionLocalProvider(LocalSongActions provides actions, LocalSongBadges provides badges) {
-            Screens(
-                app,
-                onNewPlaylist = { naming = emptyList() },
-                onImportPlaylist = { importing = "" },
-                onSaveQueue = { naming = it },
-            )
-            Dialogs(app, picking, naming, onPicking = { picking = it }, onNaming = { naming = it })
-            importing?.let { link ->
-                ImportDialog(
-                    importer = app.playlistImport,
-                    initial = link,
-                    onOpen = { id ->
-                        importing = null
-                        app.navigator.push(Destination.Playlist(id))
-                    },
-                    onDismiss = { importing = null },
-                )
+    // A short window, like Samsung's pop-up view over a game, gets the compact sizes and draws
+    // everything a little smaller, as if zoomed out, so more of each screen fits.
+    BoxWithConstraints {
+        val compact = maxHeight < COMPACT_HEIGHT
+        val density = LocalDensity.current
+        val shown = when (compact) {
+            true -> Density(density.density * COMPACT_SCALE, density.fontScale)
+            false -> density
+        }
+        CompositionLocalProvider(LocalDensity provides shown) {
+            HihuTheme(dark = dark, colors = palette.colors, black = black, compact = compact) {
+                CompositionLocalProvider(LocalSongActions provides actions, LocalSongBadges provides badges) {
+                    Screens(
+                        app,
+                        onNewPlaylist = { naming = emptyList() },
+                        onImportPlaylist = { importing = "" },
+                        onSaveQueue = { naming = it },
+                    )
+                    Dialogs(app, picking, naming, onPicking = { picking = it }, onNaming = { naming = it })
+                    importing?.let { link ->
+                        ImportDialog(
+                            importer = app.playlistImport,
+                            initial = link,
+                            onOpen = { id ->
+                                importing = null
+                                app.navigator.push(Destination.Playlist(id))
+                            },
+                            onDismiss = { importing = null },
+                        )
+                    }
+                }
             }
         }
     }
@@ -457,7 +475,8 @@ private fun BottomChrome(current: Destination.Tab, now: NowPlaying, navigator: N
                 onNext = playback::next,
             )
         }
-        NavigationBar {
+        // Short on height, the bar keeps its icons and drops the labels, which the icons then say.
+        NavigationBar(modifier = if (m.compact) Modifier.height(m.roundButton + m.gapSm) else Modifier) {
             Destination.tabs.forEach { tab ->
                 val (icon, label) = when (tab) {
                     Destination.Home -> Icons.home to R.string.tab_home
@@ -468,8 +487,14 @@ private fun BottomChrome(current: Destination.Tab, now: NowPlaying, navigator: N
                 NavigationBarItem(
                     selected = tab == current,
                     onClick = { navigator.select(tab) },
-                    icon = { Icon(painterResource(icon), contentDescription = null, Modifier.size(m.iconMd)) },
-                    label = { Text(stringResource(label)) },
+                    icon = {
+                        Icon(
+                            painterResource(icon),
+                            contentDescription = if (m.compact) stringResource(label) else null,
+                            modifier = Modifier.size(m.iconMd),
+                        )
+                    },
+                    label = if (m.compact) null else ({ Text(stringResource(label)) }),
                 )
             }
         }
