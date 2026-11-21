@@ -249,16 +249,18 @@ class YouTubeMusic(
         ?.substringAfter("list=", "")?.substringBefore('&')
         ?.takeIf { it.startsWith("RD") && !it.startsWith("RDCLAK") }
 
+    /**
+     * YouTube Music's own radio for [song], the mix RDAMVM plus its video id, queued as the app
+     * queues it: more varied than YouTube's mix of the same id, which leans on the one artist.
+     * Signed in, it follows the account's taste.
+     */
     override suspend fun radio(song: Song): Page<Song> = io {
-        // YouTube Music's own radio for a song is the mix whose id is RDAMVM plus the video id.
-        val id = song.uri.removePrefix("$SCHEME://")
-        val url = "$WATCH_URL$id&list=RDAMVM$id"
-        val info = PlaylistInfo.getInfo(service, url)
-        page(
-            InfoItemsPage(info.relatedItems, info.nextPage, emptyList()),
-            { io { PlaylistInfo.getMoreItems(service, url, it) } },
-        ) { item -> toSong(item)?.takeIf { it.id != song.id } }
-    }
+        browsing().mix("RDAMVM" + song.uri.removePrefix("$SCHEME://")).without(song.id)
+    }.onIo()
+
+    /** This page and the ones after it, without the song [id]. */
+    private fun Page<Song>.without(id: String): Page<Song> =
+        Page(items.filter { it.id != id }, next?.let { fetch -> suspend { fetch().without(id) } })
 
     override fun resolve(uri: String): ResolvedStream {
         val id = uri.removePrefix("$SCHEME://")
