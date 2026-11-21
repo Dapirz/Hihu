@@ -12,16 +12,17 @@ Early. What works today:
 
 - search YouTube Music for songs, videos, albums or artists, with suggestions as you type and
   more results as you scroll
-- open an album or an artist and play or shuffle its songs
+- open an album or an artist and play or shuffle its songs, or start an artist's radio
 - music videos play as audio only, so they cost no more data or battery than a song
 - browse the music files on your phone, and play or shuffle all of them
 - mini player and full-screen player tinted by the cover, with seek, shuffle and repeat
 - favourites, your own playlists, play history, and a queue you can reorder that is still
-  there after the app is closed
+  there after the app is closed; save the queue as a playlist
+- hide a song you don't want to hear: it leaves the queue and stays out of radios and Home
 - search within your library: favourites, playlists, downloads, history and the files on
   your phone, with or without accents
-- a Home tab with rows made from your own history (keep listening, forgotten favourites,
-  similar to the artist you play most) and YouTube Music's home shelves, no account needed
+- a Home tab with rows made from your own history (keep listening, on repeat, forgotten
+  favourites, similar to the artist you play most) and YouTube Music's home shelves, no account needed
 - an Explore tab like YouTube Music's: moods and genres, new albums and music videos, and
   what is trending in your country, from YouTube Music's charts
 - download songs from YouTube Music and play them with no connection; downloads stay inside
@@ -30,8 +31,9 @@ Early. What works today:
   none, the plain lyrics from YouTube Music
 - even out volume (off by default): songs mastered louder than YouTube's usual level are
   turned down
-- light or dark theme, and three streaming qualities
-- notification, lockscreen and headset controls
+- light or dark theme, and three streaming qualities, set apart for Wi-Fi and mobile data
+- notification, lockscreen and headset controls; a headset's play button picks up the last
+  queue after Hihu was closed, and optionally a paused song carries on when headphones connect
 
 - optionally, sign in to YouTube Music: your account's playlists, albums and artists in the
   library, Home and Explore as your account sees them, and hearts that are also liked on your
