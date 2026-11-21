@@ -51,6 +51,13 @@ fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
         dismiss()
         actions.pickPlaylist(listOf(song))
     }
+    DownloadItems(song, dismiss)
+}
+
+/** Download, download again or remove the download, for a song its provider can download. */
+@Composable
+fun DownloadItems(song: Song, dismiss: () -> Unit) {
+    val actions = LocalSongActions.current
     if (actions.downloads.supports(song)) {
         val downloaded by actions.downloads.progress.collectAsStateWithLifecycle()
         if (downloaded[song.id]?.status == DownloadStatus.Failed) {

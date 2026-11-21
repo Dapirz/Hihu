@@ -1,6 +1,13 @@
 package app.hihu.views.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -48,7 +55,9 @@ import app.hihu.ui.DarkSystemBars
 import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
 import app.hihu.views.R
+import app.hihu.views.chrome.DownloadItems
 import app.hihu.views.chrome.LocalSongActions
+import app.hihu.views.chrome.MenuItem
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.views.shared.Artwork
 import app.hihu.views.shared.formatDuration
@@ -56,7 +65,8 @@ import app.hihu.views.shared.rememberCoverColors
 
 /**
  * The full-screen now-playing view. The background runs from near-black into the cover's
- * colour; below the cover sit the titles, the seek bar and the transport row.
+ * colour; below the cover sit the titles, the seek bar and the transport row. Dragging the view
+ * down closes it, and swiping the cover sideways skips to the next or previous song.
  */
 @Composable
 fun PlayerScreen(
@@ -71,12 +81,27 @@ fun PlayerScreen(
     val colors = rememberCoverColors(now.artworkUri)
     DarkSystemBars()
     val background = Brush.verticalGradient(listOf(colors.base, colors.base, colors.tint))
+    val close by rememberUpdatedState(onClose)
+    // How far the view is dragged down; it follows the finger at half the distance.
+    var pulled by remember { mutableFloatStateOf(0f) }
 
     CompositionLocalProvider(LocalContentColor provides colors.content) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer { translationY = pulled.coerceAtLeast(0f) * PULL_FOLLOW }
                 .background(background)
+                // A list inside, like the lyrics, takes the drag first while it can scroll.
+                .pointerInput(Unit) {
+                    val limit = m.swipeDistance.toPx()
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            if (pulled > limit) close()
+                            pulled = 0f
+                        },
+                        onDragCancel = { pulled = 0f },
+                    ) { _, dy -> pulled += dy }
+                }
                 .systemBarsPadding()
                 .padding(horizontal = m.gapXl),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -102,6 +127,7 @@ fun PlayerScreen(
                 IconButton(onClick = onQueue) {
                     Icon(painterResource(Icons.queue), stringResource(R.string.queue), Modifier.size(m.iconMd))
                 }
+                SongMenu(now)
             }
             BoxWithConstraints(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -111,7 +137,7 @@ fun PlayerScreen(
                     true -> LyricsPane(lyrics, now, colors, onSeek = playback::seekTo)
                     false -> {
                         val side = minOf(maxWidth, maxHeight, m.playerArtworkMax)
-                        Artwork(now.artworkUri, side, radius = m.radiusLg)
+                        SwipeToSkip(now, playback) { Artwork(now.artworkUri, side, radius = m.radiusLg) }
                     }
                 }
             }
@@ -229,6 +255,57 @@ private fun Transport(now: NowPlaying, playback: Playback, colors: CoverColors) 
     }
 }
 
+/**
+ * [content], here the cover, follows a sideways drag; let go far enough and the song changes:
+ * to the left for the next one, to the right for the previous, when there is one.
+ */
+@Composable
+private fun SwipeToSkip(now: NowPlaying, playback: Playback, content: @Composable () -> Unit) {
+    val m = HihuTheme.metrics
+    val current by rememberUpdatedState(now)
+    var shift by remember { mutableFloatStateOf(0f) }
+    Box(
+        Modifier
+            .graphicsLayer { translationX = shift }
+            .pointerInput(Unit) {
+                val limit = m.swipeDistance.toPx()
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        when {
+                            shift < -limit && current.hasNext -> playback.next()
+                            shift > limit && current.hasPrevious -> playback.previous()
+                        }
+                        shift = 0f
+                    },
+                    onDragCancel = { shift = 0f },
+                ) { _, dx -> shift += dx }
+            },
+    ) {
+        content()
+    }
+}
+
+/** More for the playing song: add it to a playlist, or download it. */
+@Composable
+private fun SongMenu(now: NowPlaying) {
+    val m = HihuTheme.metrics
+    val actions = LocalSongActions.current
+    val song = now.song ?: return
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(painterResource(Icons.more), stringResource(R.string.more), Modifier.size(m.iconMd))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            MenuItem(R.string.add_to_playlist) {
+                open = false
+                actions.pickPlaylist(listOf(song))
+            }
+            DownloadItems(song) { open = false }
+        }
+    }
+}
+
 /** A heart that adds the playing song to the favourites, filled when it is one already. */
 @Composable
 private fun FavoriteButton(now: NowPlaying) {
@@ -253,3 +330,4 @@ private fun FavoriteButton(now: NowPlaying) {
 
 private const val INACTIVE_TRACK_ALPHA = 0.35f
 private const val PLAY_ICON_SCALE = 0.7f
+private const val PULL_FOLLOW = 0.5f
