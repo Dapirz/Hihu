@@ -254,6 +254,9 @@ class YouTubeMusic(
         ?.substringAfter("list=", "")?.substringBefore('&')
         ?.takeIf { it.startsWith("RD") && !it.startsWith("RDCLAK") }
 
+    override fun songLink(song: Song): String? = song.uri.takeIf { it.startsWith("$SCHEME://") }
+        ?.let { "$MUSIC_ORIGIN/watch?v=" + it.removePrefix("$SCHEME://") }
+
     override fun hasArtistRadio(collection: Collection): Boolean = channelId(collection) != null
 
     override suspend fun artistRadio(collection: Collection): Page<Song> = io {
