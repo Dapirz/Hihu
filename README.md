@@ -17,8 +17,11 @@ Early. What works today:
 - browse the music files on your phone, and play or shuffle all of them
 - mini player and full-screen player tinted by the cover, with seek, shuffle and repeat
 - favourites, your own playlists, play history, and a queue you can reorder that is still
-  there after the app is closed; save the queue as a playlist
+  there after the app is closed; save the queue as a playlist, or clear what was played or what
+  is coming up
 - hide a song you don't want to hear: it leaves the queue and stays out of radios and Home
+- start a radio from any song, and share a song's YouTube Music link
+- sort favourites, downloads and the files on your phone by date added, title or artist
 - search within your library: favourites, playlists, downloads, history and the files on
   your phone, with or without accents
 - a Home tab with rows made from your own history (keep listening, on repeat, forgotten

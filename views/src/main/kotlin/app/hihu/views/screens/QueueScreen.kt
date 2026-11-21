@@ -23,6 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.state.NowPlaying
 import app.hihu.music.Song
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import app.hihu.state.Playback
 import app.hihu.state.Radio
 import app.hihu.ui.HihuTheme
@@ -58,6 +64,30 @@ fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onSave: (List
             }
             IconButton(onClick = { onSave(queue) }, enabled = queue.isNotEmpty()) {
                 Icon(painterResource(Icons.add), stringResource(R.string.queue_save), Modifier.size(m.iconMd))
+            }
+            var menu by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menu = true }, enabled = queue.size > 1) {
+                    Icon(painterResource(Icons.more), stringResource(R.string.more), Modifier.size(m.iconMd))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.queue_remove_played)) },
+                        enabled = now.index > 0,
+                        onClick = {
+                            menu = false
+                            playback.removePlayed()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.queue_clear_upcoming)) },
+                        enabled = now.index in 0 until queue.size - 1,
+                        onClick = {
+                            menu = false
+                            playback.clearUpcoming()
+                        },
+                    )
+                }
             }
         }
         when (queue.isEmpty()) {

@@ -5,8 +5,11 @@
     <string name="library_failed">Gagal membaca pustaka musik.</string>
     <string name="retry">Coba lagi</string>
     <string name="unknown_artist">Artis tidak diketahui</string>
-    <string name="sort_name">Nama</string>
-    <string name="sorted_by_name">Diurutkan berdasarkan nama</string>
+    <string name="sort_added">Baru ditambahkan</string>
+    <string name="sort_title">Judul</string>
+    <string name="sort_artist">Artis</string>
+    <string name="sorted_by">Urutan: %1$s</string>
+    <string name="sort_change">Ubah urutan</string>
     <string name="play_all">Putar semua</string>
     <string name="shuffle_all">Acak semua</string>
     <string name="play">Putar</string>
@@ -190,6 +193,11 @@
     <string name="artist_radio">Radio</string>
     <string name="artist_radio_label">Putar radio lagu yang mirip artis ini</string>
     <string name="queue_save">Simpan sebagai playlist</string>
+    <string name="start_radio">Mulai radio</string>
+    <string name="share_song">Bagikan</string>
+    <string name="share_song_text">%1$s – %2$s\n%3$s</string>
+    <string name="queue_remove_played">Hapus lagu yang sudah diputar</string>
+    <string name="queue_clear_upcoming">Kosongkan lagu berikutnya</string>
     <plurals name="hidden_songs_count">
         <item quantity="other">%d lagu disembunyikan</item>
     </plurals>

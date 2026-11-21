@@ -6,8 +6,11 @@
     <string name="library_failed">Couldn\'t read your music library.</string>
     <string name="retry">Try again</string>
     <string name="unknown_artist">Unknown artist</string>
-    <string name="sort_name">Name</string>
-    <string name="sorted_by_name">Sorted by name</string>
+    <string name="sort_added">Recently added</string>
+    <string name="sort_title">Title</string>
+    <string name="sort_artist">Artist</string>
+    <string name="sorted_by">Sorted by %1$s</string>
+    <string name="sort_change">Change the order</string>
     <string name="play_all">Play all</string>
     <string name="shuffle_all">Shuffle all</string>
     <string name="play">Play</string>
@@ -195,6 +198,11 @@
     <string name="artist_radio">Radio</string>
     <string name="artist_radio_label">Play a radio of songs like this artist</string>
     <string name="queue_save">Save as playlist</string>
+    <string name="start_radio">Start radio</string>
+    <string name="share_song">Share</string>
+    <string name="share_song_text">%1$s – %2$s\n%3$s</string>
+    <string name="queue_remove_played">Remove played songs</string>
+    <string name="queue_clear_upcoming">Clear upcoming songs</string>
     <plurals name="hidden_songs_count">
         <item quantity="one">%d song hidden</item>
         <item quantity="other">%d songs hidden</item>

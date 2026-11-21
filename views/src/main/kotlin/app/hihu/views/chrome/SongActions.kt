@@ -14,6 +14,10 @@ import app.hihu.state.Downloads
 import app.hihu.state.HiddenSongs
 import app.hihu.state.Favorites
 import app.hihu.state.Playback
+import app.hihu.state.Radio
+import app.hihu.music.PlaylistLinks
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
 import app.hihu.views.R
 
 /**
@@ -25,6 +29,8 @@ class SongActions(
     val favorites: Favorites,
     val downloads: Downloads,
     val hidden: HiddenSongs,
+    val radio: Radio,
+    val links: PlaylistLinks,
     val pickPlaylist: (List<Song>) -> Unit,
     /** Starts downloading, asking for the notification permission first when it is missing. */
     val download: (List<Song>) -> Unit,
@@ -32,7 +38,10 @@ class SongActions(
 
 val LocalSongActions = staticCompositionLocalOf<SongActions> { error("SongActions is not provided") }
 
-/** The menu items every song has: play next, queue, favourite and add to playlist. */
+/**
+ * The menu items every song has: play next, queue, start a radio, favourite, add to playlist,
+ * share, download and hide; the ones a song cannot use are left out.
+ */
 @Composable
 fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
     val actions = LocalSongActions.current
@@ -45,6 +54,7 @@ fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
         actions.playback.enqueue(listOf(song))
         dismiss()
     }
+    RadioItem(song, dismiss)
     MenuItem(if (song.id in favorites) R.string.favorite_remove else R.string.favorite_add) {
         actions.favorites.toggle(song)
         dismiss()
@@ -53,8 +63,35 @@ fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
         dismiss()
         actions.pickPlaylist(listOf(song))
     }
+    ShareItem(song, dismiss)
     DownloadItems(song, dismiss)
     HideItem(song, dismiss)
+}
+
+/** "Start radio": [song] now, then songs like it without end, for a song that has a radio. */
+@Composable
+fun RadioItem(song: Song, dismiss: () -> Unit) {
+    val actions = LocalSongActions.current
+    if (!actions.radio.hasRadio(song)) return
+    MenuItem(R.string.start_radio) {
+        actions.radio.start(song)
+        dismiss()
+    }
+}
+
+/** "Share": the song's title, artist and link through Android's share sheet, for a song with a link. */
+@Composable
+fun ShareItem(song: Song, dismiss: () -> Unit) {
+    val actions = LocalSongActions.current
+    val link = actions.links.songLink(song) ?: return
+    val context = LocalContext.current
+    val text = stringResource(R.string.share_song_text, song.title, song.artist ?: stringResource(R.string.unknown_artist), link)
+    val title = stringResource(R.string.share_song)
+    MenuItem(R.string.share_song) {
+        dismiss()
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+        context.startActivity(Intent.createChooser(send, title))
+    }
 }
 
 /** "Don't play this again": the song leaves the queue and never comes up in a radio again. */

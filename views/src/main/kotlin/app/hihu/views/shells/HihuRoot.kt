@@ -75,6 +75,7 @@ import app.hihu.views.screens.SettingsScreen
 import app.hihu.views.screens.SignInScreen
 import app.hihu.state.Account
 import app.hihu.state.HiddenSongs
+import app.hihu.music.PlaylistLinks
 
 /** Everything the UI reads and drives, built once by the app module. */
 class AppState(
@@ -94,6 +95,8 @@ class AppState(
     val playlistImport: PlaylistImport,
     val downloads: Downloads,
     val hidden: HiddenSongs,
+    /** Song links to share, from the provider that has them. */
+    val links: PlaylistLinks,
     val preferences: Preferences,
     /** The YouTube Music account, signed in or not. */
     val account: Account,
@@ -134,6 +137,8 @@ fun HihuRoot(app: AppState) {
             favorites = app.favorites,
             downloads = app.downloads,
             hidden = app.hidden,
+            radio = app.radio,
+            links = app.links,
             pickPlaylist = { picking = it },
             download = { songs ->
                 // The progress notification needs this on Android 13 and newer; downloads run either way.
@@ -274,6 +279,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
                     account = app.account,
                     onOpenCollection = openCollection,
                     onSignIn = { navigator.push(Destination.SignIn) },
+                    preferences = app.preferences,
                 )
                 is Destination.Collection -> when (val open = app.collections[current.id]) {
                     null -> LaunchedEffect(current) { navigator.pop() }

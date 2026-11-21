@@ -57,6 +57,8 @@ import app.hihu.ui.Icons
 import app.hihu.views.R
 import app.hihu.views.chrome.DownloadItems
 import app.hihu.views.chrome.HideItem
+import app.hihu.views.chrome.RadioItem
+import app.hihu.views.chrome.ShareItem
 import app.hihu.views.chrome.LocalSongActions
 import app.hihu.views.chrome.MenuItem
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -286,7 +288,7 @@ private fun SwipeToSkip(now: NowPlaying, playback: Playback, content: @Composabl
     }
 }
 
-/** More for the playing song: add it to a playlist, download it, or never play it again. */
+/** More for the playing song: a radio from it, add it to a playlist, share, download, or never play it again. */
 @Composable
 private fun SongMenu(now: NowPlaying) {
     val m = HihuTheme.metrics
@@ -298,10 +300,12 @@ private fun SongMenu(now: NowPlaying) {
             Icon(painterResource(Icons.more), stringResource(R.string.more), Modifier.size(m.iconMd))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            RadioItem(song) { open = false }
             MenuItem(R.string.add_to_playlist) {
                 open = false
                 actions.pickPlaylist(listOf(song))
             }
+            ShareItem(song) { open = false }
             DownloadItems(song) { open = false }
             HideItem(song) { open = false }
         }
