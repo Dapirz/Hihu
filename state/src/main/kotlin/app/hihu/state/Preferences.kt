@@ -32,8 +32,8 @@ class Preferences(context: Context) {
     private val _quality = MutableStateFlow(read(KEY_QUALITY, AudioQuality.Normal))
     val quality: StateFlow<AudioQuality> = _quality.asStateFlow()
 
-    /** Turning songs louder than YouTube's target down, so the volume stays even. */
-    private val _normalize = MutableStateFlow(prefs.getBoolean(KEY_NORMALIZE, true))
+    /** Turning songs louder than YouTube's target down, so the volume stays even. Off unless turned on, since it makes songs quieter on a phone speaker. */
+    private val _normalize = MutableStateFlow(prefs.getBoolean(KEY_NORMALIZE, false))
     val normalize: StateFlow<Boolean> = _normalize.asStateFlow()
 
     fun setNormalize(value: Boolean) {

@@ -28,7 +28,8 @@ Early. What works today:
   Hihu and are listed in the library and in settings
 - synced lyrics that follow the song, from LRCLIB; tap a line to jump to it. When LRCLIB has
   none, the plain lyrics from YouTube Music
-- even out volume: songs mastered louder than YouTube's usual level are turned down
+- even out volume (off by default): songs mastered louder than YouTube's usual level are
+  turned down
 - light or dark theme, and three streaming qualities
 - notification, lockscreen and headset controls
 
