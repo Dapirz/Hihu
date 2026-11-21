@@ -2,6 +2,7 @@ package app.hihu
 
 import android.app.Application
 import android.content.ComponentName
+import android.net.ConnectivityManager
 import android.telephony.TelephonyManager
 import android.util.Log
 import java.util.Locale
@@ -14,6 +15,7 @@ import app.hihu.state.Downloads
 import app.hihu.state.Explore
 import app.hihu.state.Favorites
 import app.hihu.state.History
+import app.hihu.state.HiddenSongs
 import app.hihu.state.Home
 import app.hihu.state.Moods
 import app.hihu.state.Library
@@ -47,7 +49,7 @@ import kotlinx.coroutines.launch
  */
 class HihuApplication : Application() {
     // Background work that fails where nothing catches it is logged, not a crash of the whole app.
-    private val scope = MainScope() + CoroutineExceptionHandler { _, e -> Log.e(TAG, "app: background work failed", e) }
+    internal val scope = MainScope() + CoroutineExceptionHandler { _, e -> Log.e(TAG, "app: background work failed", e) }
 
     lateinit var state: AppState
         private set
@@ -63,7 +65,17 @@ class HihuApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         val preferences = Preferences(this)
-        val youtube = YouTubeMusic(locale = contentLocale(), quality = { preferences.quality.value })
+        // Mobile data and other metered networks use their own quality; read as each song opens.
+        val connectivity = getSystemService(ConnectivityManager::class.java)
+        val youtube = YouTubeMusic(
+            locale = contentLocale(),
+            quality = {
+                when (connectivity.isActiveNetworkMetered) {
+                    true -> preferences.qualityMobile.value
+                    false -> preferences.quality.value
+                }
+            },
+        )
         val store = Store(this)
         val history = History(store, scope)
         // Signed in, a heart is also a like on the account, sent by AccountLikes once it exists.
@@ -79,6 +91,11 @@ class HihuApplication : Application() {
             onSongStarted = history::record,
         )
         val playlists = Playlists(store, scope)
+        // A hidden song leaves the queue now, and signed in it is disliked on the account too.
+        val hidden = HiddenSongs(store, scope) { song, gone ->
+            if (gone) playback.drop(song.id)
+            likes.disliked(song, gone)
+        }
         // Signing in is optional; signed out, everything works anonymously.
         val account = Account(youtube, this, scope)
         likes = AccountLikes(youtube, account.status, store, scope)
@@ -91,14 +108,15 @@ class HihuApplication : Application() {
             favorites = favorites,
             history = history,
             playback = playback,
-            radio = Radio(youtube, playback, preferences.autoplay, scope),
+            radio = Radio(youtube, playback, preferences.autoplay, hidden.ids, scope),
             // LRCLIB first, for its synced lines; YouTube Music has plain lyrics for many songs LRCLIB lacks.
             lyrics = SongLyrics(FirstLyrics(listOf(Lrclib(versionName()), youtube)), playback, store, scope),
             explore = Explore(youtube, youtube, scope),
-            home = Home(youtube, youtube, history, favorites, scope),
+            home = Home(youtube, youtube, history, favorites, hidden.ids, scope),
             moods = Moods(youtube, scope),
             playlistImport = PlaylistImport(youtube, playlists, scope),
             downloads = Downloads(offline, store, scope),
+            hidden = hidden,
             preferences = preferences,
             account = account,
         )

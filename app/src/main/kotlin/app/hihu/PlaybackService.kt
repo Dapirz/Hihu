@@ -2,6 +2,11 @@ package app.hihu
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import com.google.common.util.concurrent.SettableFuture
+import kotlinx.coroutines.launch
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -79,8 +84,27 @@ class PlaybackService : MediaSessionService() {
         })
         session = MediaSession.Builder(this, player)
             .setSessionActivity(open)
-            .setCallback(Callback)
+            .setCallback(Callback(application as HihuApplication))
             .build()
+        audio.registerAudioDeviceCallback(headphones, null)
+    }
+
+    private val audio by lazy { getSystemService(AudioManager::class.java) }
+
+    /**
+     * Plays on when headphones connect, if the user turned that on and a song is paused. Only
+     * while this service runs: Android does not let a closed app start playing on its own.
+     */
+    private val headphones = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            val app = application as HihuApplication
+            if (!app.state.preferences.resumeOnConnect.value) return
+            if (addedDevices.none { it.isSink && it.type in HEADPHONES }) return
+            val player = session?.player ?: return
+            if (player.playWhenReady || player.mediaItemCount == 0) return
+            if (player.playbackState == Player.STATE_IDLE) player.prepare()
+            player.play()
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
@@ -94,6 +118,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        audio.unregisterAudioDeviceCallback(headphones)
         normalizer.detach()
         session?.run {
             player.release()
@@ -105,9 +130,25 @@ class PlaybackService : MediaSessionService() {
 
     /**
      * Turns the items a controller sends back into playable ones. A controller strips the URI
-     * from a MediaItem, so state.Playback carries it in requestMetadata instead.
+     * from a MediaItem, so state.Playback carries it in requestMetadata instead. It also hands
+     * back the saved queue when playing is resumed after Hihu was closed.
      */
-    private object Callback : MediaSession.Callback {
+    private class Callback(private val app: HihuApplication) : MediaSession.Callback {
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            isForPlayback: Boolean,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            app.scope.launch {
+                when (val saved = app.state.playback.resumable()) {
+                    null -> future.setException(UnsupportedOperationException("playback: nothing to resume"))
+                    else -> future.set(saved)
+                }
+            }
+            return future
+        }
+
         override fun onAddMediaItems(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
@@ -118,5 +159,18 @@ class PlaybackService : MediaSessionService() {
                     item.requestMetadata.mediaUri?.let { item.buildUpon().setUri(it).build() } ?: item
                 },
             )
+    }
+
+    private companion object {
+        /** The outputs that count as headphones: Bluetooth, wired, and USB headsets or dongles. */
+        val HEADPHONES = setOf(
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+            AudioDeviceInfo.TYPE_BLE_HEADSET,
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            // A USB-C dongle for wired earphones often reports itself as a plain USB device.
+            AudioDeviceInfo.TYPE_USB_DEVICE,
+        )
     }
 }
