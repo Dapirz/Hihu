@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
 import app.hihu.music.Song
 import com.google.common.util.concurrent.ListenableFuture
@@ -227,6 +228,24 @@ class Playback(
     fun removeAt(index: Int) {
         val c = controller ?: return
         if (index in 0 until c.mediaItemCount) c.removeMediaItem(index)
+    }
+
+    /**
+     * The saved queue as the service needs it to start again after Hihu was closed, from a
+     * headset's play button or the system's resume card; null when nothing was saved.
+     */
+    suspend fun resumable(): MediaSession.MediaItemsWithStartPosition? {
+        val snapshot = runCatching { saved.load() }.getOrNull() ?: return null
+        if (snapshot.songs.isEmpty()) return null
+        return MediaSession.MediaItemsWithStartPosition(snapshot.songs.map(::toMediaItem), snapshot.index, snapshot.positionMs)
+    }
+
+    /** Takes every copy of the song [songId] out of the queue; if it is playing, the next one plays. */
+    fun drop(songId: String) {
+        val c = controller ?: return
+        for (i in c.mediaItemCount - 1 downTo 0) {
+            if (c.getMediaItemAt(i).mediaId == songId) c.removeMediaItem(i)
+        }
     }
 
     fun move(from: Int, to: Int) {

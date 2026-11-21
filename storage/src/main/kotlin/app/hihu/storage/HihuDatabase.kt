@@ -28,7 +28,7 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
 
     private companion object {
         const val NAME = "hihu.db"
-        const val VERSION = 5
+        const val VERSION = 6
 
         val SCHEMA = listOf(
             """
@@ -120,6 +120,15 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
                 CREATE TABLE lyrics_offsets (
                     song_id TEXT PRIMARY KEY,
                     offset_ms INTEGER NOT NULL
+                )
+                """,
+            ),
+            6 to listOf(
+                // Songs the user asked never to hear again; the radio and Home leave them out.
+                """
+                CREATE TABLE hidden_songs (
+                    song_id TEXT PRIMARY KEY REFERENCES songs(id),
+                    hidden_at INTEGER NOT NULL
                 )
                 """,
             ),

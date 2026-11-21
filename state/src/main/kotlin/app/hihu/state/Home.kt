@@ -22,6 +22,9 @@ sealed interface PersonalRow {
     /** What was played lately, most recent first. */
     data class KeepListening(override val songs: List<Song>) : PersonalRow
 
+    /** What was played most in the last month. */
+    data class MostPlayed(override val songs: List<Song>) : PersonalRow
+
     /** Hearted songs that have not been played lately. */
     data class Forgotten(override val songs: List<Song>) : PersonalRow
 
@@ -38,6 +41,7 @@ class Home(
     private val radio: MusicRadio,
     history: History,
     favorites: Favorites,
+    private val hidden: StateFlow<Set<String>>,
     private val scope: CoroutineScope,
 ) {
     private val pager = Pager<Shelf>(scope, Shelf::title, "home")
@@ -51,12 +55,13 @@ class Home(
 
     /** The rows made on the phone, in the order they show; empty ones are left out. */
     val personal: StateFlow<List<PersonalRow>> =
-        combine(history.recent, favorites.songs, similar) { recent, hearted, like ->
+        combine(history.recent, history.mostPlayed, favorites.songs, similar, hidden) { recent, most, hearted, like, gone ->
             val lately = recent.take(LATELY).mapTo(HashSet(), Song::id)
             listOfNotNull(
                 recent.take(ROW_SIZE).takeIf { it.isNotEmpty() }?.let(PersonalRow::KeepListening),
+                most.filter { it.id !in gone }.takeIf { it.isNotEmpty() }?.let(PersonalRow::MostPlayed),
                 hearted.filter { it.id !in lately }.take(ROW_SIZE).takeIf { it.isNotEmpty() }?.let(PersonalRow::Forgotten),
-                like,
+                like?.let { row -> row.copy(songs = row.songs.filter { it.id !in gone }) }?.takeIf { it.songs.isNotEmpty() },
             )
         }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
@@ -90,7 +95,7 @@ class Home(
                 // Not a song already on the rows of history, nor the same song twice, as a song
                 // and its music video often come one after the other.
                 val heard = recentSongs.value.mapTo(HashSet(), ::sameSong)
-                val songs = radio.radio(seed).items.filter { heard.add(sameSong(it)) }.take(ROW_SIZE)
+                val songs = radio.radio(seed).items.filter { it.id !in hidden.value && heard.add(sameSong(it)) }.take(ROW_SIZE)
                 similar.value = PersonalRow.Similar(artist, songs).takeIf { songs.isNotEmpty() }
             } catch (e: CancellationException) {
                 throw e

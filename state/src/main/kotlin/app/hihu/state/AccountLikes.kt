@@ -45,6 +45,24 @@ class AccountLikes(
         }
     }
 
+    /**
+     * Called when the user hides a song or shows it again; signed in, it is disliked on the
+     * account, or the dislike taken back, so YouTube Music learns too. Sent once, not queued:
+     * offline, the account just does not hear of it.
+     */
+    fun disliked(song: Song, disliked: Boolean) {
+        if (!source.canLike(song) || status.value !is AccountStatus.SignedIn) return
+        scope.launch {
+            try {
+                source.setDisliked(song, disliked)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "likes: cannot send a dislike", e)
+            }
+        }
+    }
+
     /** Called for every heart the user changes; queues it for the account while signed in. */
     fun toggled(song: Song, liked: Boolean) {
         if (!source.canLike(song)) return

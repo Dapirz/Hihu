@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
  * Plays a song and keeps the queue topped up with songs like it, the way YouTube Music does after
  * a search. More are fetched when only a few are left. Playing anything else ends the radio.
  *
+ * Songs in [hidden] never join the queue this way.
+ *
  * With [autoplay] on, any other queue becomes the radio of its last song once that song plays, so
  * the music goes on instead of stopping. Not with shuffle on, where songs added at the end would
  * be shuffled in among the ones already played, nor with repeat on, which already goes on.
@@ -26,6 +28,7 @@ class Radio(
     private val source: MusicRadio,
     private val playback: Playback,
     private val autoplay: StateFlow<Boolean>,
+    private val hidden: StateFlow<Set<String>>,
     private val scope: CoroutineScope,
 ) {
     private val _seed = MutableStateFlow<String?>(null)
@@ -68,17 +71,55 @@ class Radio(
      * keeps the queue topped up with the rest of the mix, which does not end. Shuffle mode stays
      * off, so the songs added at the end play after these.
      */
-    fun playMix(collection: Collection, songs: List<Song>, start: Int, shuffle: Boolean) {
+    fun playMix(collection: Collection, all: List<Song>, start: Int, shuffle: Boolean) {
+        // The song tapped plays even if hidden; the rest of the mix leaves hidden ones out.
+        val tapped = all.getOrNull(start)
+        val songs = all.filter { it == tapped || it.id !in hidden.value }
         if (songs.isEmpty()) return
         job?.cancel()
         next = null
         when (shuffle) {
             true -> playback.play(songs.shuffled(), 0, shuffle = false)
-            false -> playback.play(songs, start, shuffle = false)
+            false -> playback.play(songs, songs.indexOf(tapped).coerceAtLeast(0), shuffle = false)
         }
         generation = playback.generation
         _seed.value = collection.title
         job = scope.launch { load { source.mix(collection) } }
+    }
+
+    fun hasArtistRadio(collection: Collection): Boolean = source.hasArtistRadio(collection)
+
+    private val _startingArtist = MutableStateFlow(false)
+
+    /** True while an artist's radio is being fetched, before it starts playing. */
+    val startingArtist: StateFlow<Boolean> = _startingArtist.asStateFlow()
+
+    /**
+     * Plays the radio of artist [collection]: songs like theirs, kept topped up like any radio.
+     * Nothing changes until its first page arrives, and if it cannot be loaded the queue playing
+     * stays as it was.
+     */
+    fun startArtist(collection: Collection) {
+        job?.cancel()
+        next = null
+        job = scope.launch {
+            _startingArtist.value = true
+            try {
+                val page = source.artistRadio(collection)
+                val songs = page.items.filter { it.id !in hidden.value }.distinctBy(Song::id)
+                if (songs.isEmpty()) return@launch
+                playback.play(songs, 0, shuffle = false)
+                generation = playback.generation
+                next = page.next
+                _seed.value = collection.title
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "radio: cannot load the artist's radio", e)
+            } finally {
+                _startingArtist.value = false
+            }
+        }
     }
 
     /** Whether [now] is the last song of a queue that would stop after it. */
@@ -106,7 +147,7 @@ class Radio(
             if (!active()) return
             next = page.next
             val queued = playback.queue.value.mapTo(HashSet(), Song::id)
-            val fresh = page.items.filter { queued.add(it.id) }
+            val fresh = page.items.filter { it.id !in hidden.value && queued.add(it.id) }
             if (fresh.isNotEmpty()) playback.enqueue(fresh, resume = true)
         } catch (e: CancellationException) {
             throw e

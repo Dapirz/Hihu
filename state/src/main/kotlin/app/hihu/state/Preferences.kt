@@ -29,8 +29,25 @@ class Preferences(context: Context) {
     private val _black = MutableStateFlow(prefs.getBoolean(KEY_BLACK, false))
     val black: StateFlow<Boolean> = _black.asStateFlow()
 
+    /** The streaming quality on Wi-Fi and other unmetered networks. */
     private val _quality = MutableStateFlow(read(KEY_QUALITY, AudioQuality.Normal))
     val quality: StateFlow<AudioQuality> = _quality.asStateFlow()
+
+    /** The streaming quality on mobile data and other metered networks; at first the same as on Wi-Fi. */
+    private val _qualityMobile = MutableStateFlow(read(KEY_QUALITY_MOBILE, _quality.value))
+    val qualityMobile: StateFlow<AudioQuality> = _qualityMobile.asStateFlow()
+
+    /**
+     * Playing on as soon as headphones connect, while Hihu is paused in the background with
+     * something queued. Off by default, so music never starts on its own unasked.
+     */
+    private val _resumeOnConnect = MutableStateFlow(prefs.getBoolean(KEY_RESUME_ON_CONNECT, false))
+    val resumeOnConnect: StateFlow<Boolean> = _resumeOnConnect.asStateFlow()
+
+    fun setResumeOnConnect(value: Boolean) {
+        _resumeOnConnect.value = value
+        prefs.edit().putBoolean(KEY_RESUME_ON_CONNECT, value).apply()
+    }
 
     /** Turning songs louder than YouTube's target down, so the volume stays even. Off unless turned on, since it makes songs quieter on a phone speaker. */
     private val _normalize = MutableStateFlow(prefs.getBoolean(KEY_NORMALIZE, false))
@@ -70,6 +87,11 @@ class Preferences(context: Context) {
         prefs.edit().putString(KEY_QUALITY, value.name).apply()
     }
 
+    fun setQualityMobile(value: AudioQuality) {
+        _qualityMobile.value = value
+        prefs.edit().putString(KEY_QUALITY_MOBILE, value.name).apply()
+    }
+
     /** Reads an enum by name, falling back to [default] when unset or no longer known. */
     private inline fun <reified E : Enum<E>> read(key: String, default: E): E =
         prefs.getString(key, null)?.let { name -> enumValues<E>().firstOrNull { it.name == name } } ?: default
@@ -82,5 +104,7 @@ class Preferences(context: Context) {
         const val KEY_PALETTE = "palette"
         const val KEY_BLACK = "pure_black"
         const val KEY_QUALITY = "audio_quality"
+        const val KEY_QUALITY_MOBILE = "audio_quality_mobile"
+        const val KEY_RESUME_ON_CONNECT = "resume_on_connect"
     }
 }
