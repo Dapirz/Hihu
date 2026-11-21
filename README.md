@@ -43,8 +43,8 @@ Early. What works today:
 - an Explore tab like YouTube Music's: moods and genres, new albums and music videos, and
   what is trending in your country, from YouTube Music's charts
 - download songs from YouTube Music and play them with no connection, in a quality of their
-  own; optionally, every song you heart is downloaded over Wi-Fi. Downloads stay inside Hihu and
-  are listed in the library and in settings
+  own; optionally, every song you heart is downloaded, over Wi-Fi only or on mobile data too.
+  Downloads stay inside Hihu and are listed in the library and in settings
 - synced lyrics that follow the song, from LRCLIB; tap a line to jump to it, move the timing,
   and make the text larger or smaller. When LRCLIB has none, the plain lyrics from YouTube Music
 - even out volume (off by default): songs mastered louder than YouTube's usual level are

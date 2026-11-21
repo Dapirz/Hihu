@@ -99,6 +99,7 @@ fun SettingsScreen(
     val resumeOnConnect by preferences.resumeOnConnect.collectAsStateWithLifecycle()
     val qualityDownload by preferences.qualityDownload.collectAsStateWithLifecycle()
     val downloadLikes by preferences.downloadLikes.collectAsStateWithLifecycle()
+    val downloadLikesMobile by preferences.downloadLikesMobile.collectAsStateWithLifecycle()
     val palette by preferences.palette.collectAsStateWithLifecycle()
     val black by preferences.black.collectAsStateWithLifecycle()
     val normalize by preferences.normalize.collectAsStateWithLifecycle()
@@ -225,6 +226,14 @@ fun SettingsScreen(
                     checked = downloadLikes,
                     onChange = preferences::setDownloadLikes,
                 )
+                if (downloadLikes) {
+                    Toggle(
+                        title = R.string.download_likes_mobile,
+                        detail = R.string.download_likes_mobile_detail,
+                        checked = downloadLikesMobile,
+                        onChange = preferences::setDownloadLikesMobile,
+                    )
+                }
                 SubHeading(R.string.quality_download)
                 Choices(
                     options = AudioQuality.entries,

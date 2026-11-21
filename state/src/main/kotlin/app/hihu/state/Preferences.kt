@@ -106,6 +106,15 @@ class Preferences(context: Context) {
         if (!value) setPendingDownloads(emptySet())
     }
 
+    /** Downloading hearted songs on mobile data too, not only on Wi-Fi. Off by default. */
+    private val _downloadLikesMobile = MutableStateFlow(prefs.getBoolean(KEY_DOWNLOAD_LIKES_MOBILE, false))
+    val downloadLikesMobile: StateFlow<Boolean> = _downloadLikesMobile.asStateFlow()
+
+    fun setDownloadLikesMobile(value: Boolean) {
+        _downloadLikesMobile.value = value
+        prefs.edit().putBoolean(KEY_DOWNLOAD_LIKES_MOBILE, value).apply()
+    }
+
     /** Hearted songs waiting for Wi-Fi to be downloaded. */
     fun pendingDownloads(): Set<String> = prefs.getStringSet(KEY_PENDING_DOWNLOADS, null).orEmpty().toSet()
 
@@ -165,6 +174,7 @@ class Preferences(context: Context) {
         const val KEY_QUALITY_DOWNLOAD = "audio_quality_download"
         const val KEY_LYRICS_SIZE = "lyrics_size"
         const val KEY_DOWNLOAD_LIKES = "download_likes"
+        const val KEY_DOWNLOAD_LIKES_MOBILE = "download_likes_mobile"
         const val KEY_PENDING_DOWNLOADS = "pending_like_downloads"
         const val KEY_RESUME_ON_CONNECT = "resume_on_connect"
     }

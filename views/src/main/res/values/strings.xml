@@ -225,7 +225,9 @@
         <item quantity="other">%d selected</item>
     </plurals>
     <string name="download_likes">Download songs you like</string>
-    <string name="download_likes_detail">Songs you heart are downloaded, over Wi-Fi only. One hearted on mobile data is downloaded once Wi-Fi connects.</string>
+    <string name="download_likes_detail">Songs you heart are downloaded. Unless mobile data is allowed below, one hearted on mobile data waits until Wi-Fi connects.</string>
+    <string name="download_likes_mobile">On mobile data too</string>
+    <string name="download_likes_mobile_detail">Download right away even on mobile data. This uses your data allowance.</string>
     <string name="quality_download">Download quality</string>
     <string name="share_song">Share</string>
     <string name="share_song_text">%1$s – %2$s\n%3$s</string>

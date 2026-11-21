@@ -112,6 +112,7 @@ class HihuApplication : Application() {
         val downloads = Downloads(offline, store, scope)
         likedDownloads = LikedDownloads(
             enabled = preferences.downloadLikes,
+            mobileToo = preferences.downloadLikesMobile,
             preferences = preferences,
             downloads = downloads,
             favorites = { favorites.songs.value },

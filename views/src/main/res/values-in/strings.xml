@@ -217,7 +217,9 @@
         <item quantity="other">%d dipilih</item>
     </plurals>
     <string name="download_likes">Download lagu yang disukai</string>
-    <string name="download_likes_detail">Lagu yang kamu beri hati otomatis di-download, hanya lewat Wi-Fi. Lagu yang disukai saat pakai data seluler di-download nanti saat Wi-Fi tersambung.</string>
+    <string name="download_likes_detail">Lagu yang kamu beri hati otomatis di-download. Tanpa data seluler, lagu yang disukai saat pakai data seluler di-download nanti saat Wi-Fi tersambung.</string>
+    <string name="download_likes_mobile">Juga lewat data seluler</string>
+    <string name="download_likes_mobile_detail">Langsung di-download walaupun sedang pakai data seluler. Bisa memakan kuota.</string>
     <string name="quality_download">Kualitas download</string>
     <string name="share_song">Bagikan</string>
     <string name="share_song_text">%1$s – %2$s\n%3$s</string>
