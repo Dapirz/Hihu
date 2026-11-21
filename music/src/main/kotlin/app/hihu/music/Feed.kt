@@ -24,4 +24,13 @@ interface MusicFeed {
 
     /** The shelves of playlists for one mood or genre. */
     suspend fun mood(mood: Mood): List<Shelf>
+
+    /**
+     * The newest albums and singles of each of [artists], by name, newest first per artist. An
+     * artist the catalogue cannot find by that exact name is left out.
+     */
+    suspend fun latestReleases(artists: List<String>): List<Release>
 }
+
+/** An album or single, with the year it came out in. */
+data class Release(val collection: Collection, val year: Int)

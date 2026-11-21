@@ -12,6 +12,9 @@ interface StreamResolver {
     /** Blocks until the stream for [uri] is known. Throws when it cannot be played. */
     fun resolve(uri: String): ResolvedStream
 
+    /** Like [resolve], for keeping the song: a download may want another quality than playing does. */
+    fun resolveForDownload(uri: String): ResolvedStream = resolve(uri)
+
     /**
      * Forgets what [resolve] cached for [uri], after the server refused it, so the next call
      * asks the provider again instead of handing back the same dead URL.

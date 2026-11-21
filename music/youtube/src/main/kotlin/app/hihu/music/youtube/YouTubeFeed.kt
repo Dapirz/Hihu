@@ -6,6 +6,7 @@ import app.hihu.music.CollectionKind
 import app.hihu.music.ExploreFeed
 import app.hihu.music.Mood
 import app.hihu.music.Page
+import app.hihu.music.Release
 import app.hihu.music.SearchResult
 import app.hihu.music.SessionExpired
 import app.hihu.music.Shelf
@@ -67,6 +68,25 @@ internal class YouTubeFeed(private val api: InnerTube) {
      */
     fun artistRadioId(channelId: String): String? =
         findObject(api.browse(browseId = channelId), "startRadioButton")?.let { findString(it, "playlistId") }
+
+    /**
+     * The first albums and singles on artist [channelId]'s page, which lists them newest first,
+     * with the year each came out in, read from the card's subtitle ("Single • 2024").
+     */
+    fun artistReleases(channelId: String): List<Release> {
+        val sections = sections(api.browse(browseId = channelId)).contents
+        return sections.flatMap { section ->
+            section.getObject("musicCarouselShelfRenderer").getArray("contents").objects()
+                .mapNotNull { entry ->
+                    val collection = (item(entry) as? SearchResult.Group)?.collection ?: return@mapNotNull null
+                    if (collection.kind != CollectionKind.Album) return@mapNotNull null
+                    val subtitle = entry.getObject(CARD).getObject("subtitle").runsText().orEmpty()
+                    val year = YEAR.findAll(subtitle).lastOrNull()?.value?.toIntOrNull() ?: return@mapNotNull null
+                    Release(collection, year)
+                }
+                .take(RELEASES_PER_SHELF)
+        }
+    }
 
     /** Dislikes [videoId] or takes the dislike back; [api] must carry a session. */
     fun dislike(videoId: String, disliked: Boolean) = api.dislike(videoId, disliked)
@@ -293,6 +313,9 @@ internal class YouTubeFeed(private val api: InnerTube) {
         const val CHANNEL_URL = "https://www.youtube.com/channel/"
         const val ARTWORK_SIZE = 544
         val SIZE_WH = Regex("=w\\d+-h\\d+")
+        val YEAR = Regex("\\b(19|20)\\d{2}\\b")
+        /** The newest few of an artist's albums, and of their singles. */
+        const val RELEASES_PER_SHELF = 2
     }
 }
 

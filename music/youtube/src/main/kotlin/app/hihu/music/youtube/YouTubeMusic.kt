@@ -20,6 +20,7 @@ import app.hihu.music.MusicBrowse
 import app.hihu.music.MusicRadio
 import app.hihu.music.MusicSearch
 import app.hihu.music.Page
+import app.hihu.music.Release
 import app.hihu.music.ResolvedStream
 import app.hihu.music.SearchKind
 import app.hihu.music.SearchResult
@@ -65,6 +66,8 @@ class YouTubeMusic(
     locale: Locale = Locale.getDefault(),
     /** Read every time a song is resolved, so a changed setting applies to the next song. */
     private val quality: () -> AudioQuality = { AudioQuality.Normal },
+    /** The quality a song is downloaded in, read as each download starts. */
+    private val downloadQuality: () -> AudioQuality = quality,
 ) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, LyricsProvider, MusicAccount, SongLoudness, StreamResolver {
 
     private val service = ServiceList.YouTube
@@ -122,6 +125,14 @@ class YouTubeMusic(
     override suspend fun explore(): ExploreFeed = io { browsing().explore() }
 
     override suspend fun mood(mood: Mood): List<Shelf> = io { browsing().mood(mood) }
+
+    override suspend fun latestReleases(artists: List<String>): List<Release> = artists.flatMap { name ->
+        // The artist is the first search result whose name is exactly this one.
+        val artist = runCatching { search(name, SearchKind.Artists).items }.getOrDefault(emptyList())
+            .firstNotNullOfOrNull { (it as? SearchResult.Group)?.collection?.takeIf { c -> c.title.trim().equals(name.trim(), ignoreCase = true) } }
+        val channel = artist?.let(::channelId) ?: return@flatMap emptyList()
+        runCatching { io { browsing().artistReleases(channel) } }.getOrDefault(emptyList())
+    }
 
     /** Signed in, home, explore and moods come as the account sees them; otherwise anonymously. */
     private fun browsing(): YouTubeFeed = when (session != null) {
@@ -285,9 +296,13 @@ class YouTubeMusic(
     private fun Page<Song>.without(id: String): Page<Song> =
         Page(items.filter { it.id != id }, next?.let { fetch -> suspend { fetch().without(id) } })
 
-    override fun resolve(uri: String): ResolvedStream {
+    override fun resolve(uri: String): ResolvedStream = resolveIn(uri, quality())
+
+    override fun resolveForDownload(uri: String): ResolvedStream = resolveIn(uri, downloadQuality())
+
+    /** The stream of [uri] in quality [wanted], from the cache while its URL is still good. */
+    private fun resolveIn(uri: String, wanted: AudioQuality): ResolvedStream {
         val id = uri.removePrefix("$SCHEME://")
-        val wanted = quality()
         val key = "$id@$wanted"
         resolved[key]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let { return it.stream }
 
