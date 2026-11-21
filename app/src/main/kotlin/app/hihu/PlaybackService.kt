@@ -2,6 +2,12 @@ package app.hihu
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import androidx.media3.common.PlaybackException
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -82,6 +88,8 @@ class PlaybackService : MediaSessionService() {
                 )
             }
         })
+        player.addListener(retrying)
+        connectivity.registerDefaultNetworkCallback(network)
         session = MediaSession.Builder(this, player)
             .setSessionActivity(open)
             .setCallback(Callback(application as HihuApplication))
@@ -90,6 +98,68 @@ class PlaybackService : MediaSessionService() {
     }
 
     private val audio by lazy { getSystemService(AudioManager::class.java) }
+    private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
+    private val main = Handler(Looper.getMainLooper())
+
+    /** How many times the song [retriedId] has been tried again since it last failed for good. */
+    private var retries = 0
+    private var retriedId: String? = null
+
+    /** True while a failed stream waits for the phone to be online again. */
+    private var waitingForNetwork = false
+
+    /**
+     * Tries a stream again when it fails on the network: a few times with a growing wait, or once
+     * the phone is online again if it is offline. A song that keeps failing gives way to the next,
+     * so the music does not stop over one bad song.
+     */
+    private val retrying = object : Player.Listener {
+        override fun onPlayerError(error: PlaybackException) {
+            val player = session?.player ?: return
+            if (error.errorCode !in NETWORK_ERRORS) return
+            if (!online()) {
+                Log.w(TAG, "playback: offline, waiting for the network to try again")
+                waitingForNetwork = true
+                return
+            }
+            val id = player.currentMediaItem?.mediaId
+            if (id != retriedId) {
+                retriedId = id
+                retries = 0
+            }
+            if (retries >= MAX_RETRIES) {
+                Log.w(TAG, "playback: a song kept failing (${error.errorCodeName}), playing the next")
+                retries = 0
+                if (player.hasNextMediaItem()) {
+                    player.seekToNextMediaItem()
+                    player.prepare()
+                }
+                return
+            }
+            val wait = FIRST_RETRY_MS shl retries
+            retries++
+            Log.w(TAG, "playback: stream failed (${error.errorCodeName}), trying again in $wait ms")
+            main.postDelayed({ retry(player) }, wait)
+        }
+    }
+
+    private val network = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            main.post {
+                if (!waitingForNetwork) return@post
+                waitingForNetwork = false
+                session?.player?.let(::retry)
+            }
+        }
+    }
+
+    /** Opens the failed song again where it stopped, if it is still the one that failed. */
+    private fun retry(player: Player) {
+        if (player.playerError == null) return
+        player.prepare()
+    }
+
+    private fun online(): Boolean = connectivity.activeNetwork != null
 
     /**
      * Plays on when headphones connect, if the user turned that on and a song is paused. Only
@@ -118,6 +188,8 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        main.removeCallbacksAndMessages(null)
+        runCatching { connectivity.unregisterNetworkCallback(network) }
         audio.unregisterAudioDeviceCallback(headphones)
         normalizer.detach()
         session?.run {
@@ -162,6 +234,18 @@ class PlaybackService : MediaSessionService() {
     }
 
     private companion object {
+        const val TAG = "Hihu"
+        const val MAX_RETRIES = 3
+        const val FIRST_RETRY_MS = 2_000L
+
+        /** Failures the network may get over: a dropped or slow connection, or a refused URL. */
+        val NETWORK_ERRORS = setOf(
+            PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+            PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+        )
+
         /** The outputs that count as headphones: Bluetooth, wired, and USB headsets or dongles. */
         val HEADPHONES = setOf(
             AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,

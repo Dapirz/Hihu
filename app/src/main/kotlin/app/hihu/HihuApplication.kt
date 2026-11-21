@@ -3,6 +3,11 @@ package app.hihu
 import android.app.Application
 import android.content.ComponentName
 import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import app.hihu.state.LikedDownloads
+import app.hihu.state.BugReport
 import android.telephony.TelephonyManager
 import android.util.Log
 import java.util.Locale
@@ -75,12 +80,17 @@ class HihuApplication : Application() {
                     false -> preferences.quality.value
                 }
             },
+            downloadQuality = { preferences.qualityDownload.value },
         )
         val store = Store(this)
         val history = History(store, scope)
         // Signed in, a heart is also a like on the account, sent by AccountLikes once it exists.
         lateinit var likes: AccountLikes
-        val favorites = Favorites(store, scope) { song, liked -> likes.toggled(song, liked) }
+        lateinit var likedDownloads: LikedDownloads
+        val favorites = Favorites(store, scope) { song, liked ->
+            likes.toggled(song, liked)
+            likedDownloads.toggled(song, liked)
+        }
         normalizer = Normalizer(this, youtube, preferences.normalize, scope)
         offline = Offline(this, listOf(youtube), onDownload = normalizer::prefetch)
         val playback = Playback(
@@ -99,6 +109,15 @@ class HihuApplication : Application() {
         // Signing in is optional; signed out, everything works anonymously.
         val account = Account(youtube, this, scope)
         likes = AccountLikes(youtube, account.status, store, scope)
+        val downloads = Downloads(offline, store, scope)
+        likedDownloads = LikedDownloads(
+            enabled = preferences.downloadLikes,
+            preferences = preferences,
+            downloads = downloads,
+            favorites = { favorites.songs.value },
+            unmetered = { !connectivity.isActiveNetworkMetered },
+        )
+        watchUnmetered(connectivity, likedDownloads)
         state = AppState(
             navigator = Navigator(Destination.Home),
             library = Library(MediaStoreLibrary(this), scope),
@@ -115,8 +134,9 @@ class HihuApplication : Application() {
             home = Home(youtube, youtube, history, favorites, hidden.ids, scope),
             moods = Moods(youtube, scope),
             playlistImport = PlaylistImport(youtube, playlists, scope),
-            downloads = Downloads(offline, store, scope),
+            downloads = downloads,
             hidden = hidden,
+            bugReport = BugReport(versionName(), scope),
             links = youtube,
             preferences = preferences,
             account = account,
@@ -136,6 +156,19 @@ class HihuApplication : Application() {
                 state.explore.refresh()
             }
         }
+    }
+
+    /** Tells [likedDownloads] whenever a network that costs nothing per byte, like Wi-Fi, connects. */
+    private fun watchUnmetered(connectivity: ConnectivityManager, likedDownloads: LikedDownloads) {
+        val unmetered = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+            .build()
+        connectivity.registerNetworkCallback(unmetered, object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                scope.launch { likedDownloads.onUnmetered() }
+            }
+        })
     }
 
     private fun versionName(): String =

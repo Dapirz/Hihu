@@ -20,6 +20,7 @@ import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import app.hihu.music.Song
+import app.hihu.music.ResolvedStream
 import app.hihu.music.StreamResolver
 import app.hihu.state.DownloadEngine
 import app.hihu.state.DownloadProgress
@@ -47,20 +48,27 @@ class Offline(
     private val database = StandaloneDatabaseProvider(context)
     private val cache = SimpleCache(File(context.filesDir, FOLDER), NoOpCacheEvictor(), database)
 
+    /** What the player streams from, in the streaming quality. */
+    private val upstream: DataSource.Factory = upstream { resolver, uri -> resolver.resolve(uri) }
+
+    /** What downloads read from, in the download quality. */
+    private val downloadUpstream: DataSource.Factory = upstream { resolver, uri -> resolver.resolveForDownload(uri) }
+
     /**
      * Local files and plain URLs open as they are. A provider URI such as `hihu-yt://<id>` is
-     * resolved to its stream URL and headers on the loading thread, every time it is opened.
+     * resolved to its stream URL and headers by [resolve] on the loading thread, every time it is
+     * opened.
      */
-    private val upstream: DataSource.Factory = run {
+    private fun upstream(resolve: (StreamResolver, String) -> ResolvedStream): DataSource.Factory {
         val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
         // YouTube streams are read in chunks; YouTube slows a request for the whole file.
         val resolving = ResolvingDataSource.Factory(DefaultDataSource.Factory(context, ChunkedStreamDataSource.Factory(http))) { spec ->
             val resolver = schemes[spec.uri.scheme] ?: return@Factory spec
-            val stream = resolver.resolve(spec.uri.toString())
+            val stream = resolve(resolver, spec.uri.toString())
             spec.withUri(Uri.parse(stream.url)).withAdditionalHeaders(stream.headers)
         }
         // A URL YouTube stops accepting mid-song is fetched again on the player's retry.
-        RefreshingDataSource.Factory(resolving) { uri -> schemes[uri.scheme]?.invalidate(uri.toString()) }
+        return RefreshingDataSource.Factory(resolving) { uri -> schemes[uri.scheme]?.invalidate(uri.toString()) }
     }
 
     /**
@@ -77,7 +85,7 @@ class Offline(
         context,
         database,
         cache,
-        CacheDataSource.Factory().setCache(cache).setUpstreamDataSourceFactory(upstream),
+        CacheDataSource.Factory().setCache(cache).setUpstreamDataSourceFactory(downloadUpstream),
         Executors.newFixedThreadPool(PARALLEL),
     ).apply {
         maxParallelDownloads = PARALLEL
