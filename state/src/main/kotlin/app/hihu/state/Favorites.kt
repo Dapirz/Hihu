@@ -2,6 +2,7 @@ package app.hihu.state
 
 import android.content.ContentValues
 import app.hihu.music.Song
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,15 +26,22 @@ class Favorites(
     /** The ids of [songs], for showing a filled heart without searching the list. */
     val ids: StateFlow<Set<String>> = _ids.asStateFlow()
 
+    /** Done once the hearts are first read, so a tap right at start-up knows which way it goes. */
+    private val loaded = CompletableDeferred<Unit>()
+
     init {
-        scope.launch { reload() }
+        scope.launch {
+            reload()
+            loaded.complete(Unit)
+        }
     }
 
     /** Hearts [song], or takes the heart away if it already has one. */
     fun toggle(song: Song) {
-        val adding = song.id !in _ids.value
-        _ids.value = if (adding) _ids.value + song.id else _ids.value - song.id
         scope.launch {
+            loaded.await()
+            val adding = song.id !in _ids.value
+            _ids.value = if (adding) _ids.value + song.id else _ids.value - song.id
             store.transaction { db ->
                 when (adding) {
                     true -> {

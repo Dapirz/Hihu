@@ -87,6 +87,42 @@ class Preferences(context: Context) {
         prefs.edit().putString(KEY_QUALITY, value.name).apply()
     }
 
+    /** The quality songs are downloaded in; High at first, since a download is played many times. */
+    private val _qualityDownload = MutableStateFlow(read(KEY_QUALITY_DOWNLOAD, AudioQuality.High))
+    val qualityDownload: StateFlow<AudioQuality> = _qualityDownload.asStateFlow()
+
+    fun setQualityDownload(value: AudioQuality) {
+        _qualityDownload.value = value
+        prefs.edit().putString(KEY_QUALITY_DOWNLOAD, value.name).apply()
+    }
+
+    /** Downloading each song as it is hearted, over Wi-Fi only. Off by default. */
+    private val _downloadLikes = MutableStateFlow(prefs.getBoolean(KEY_DOWNLOAD_LIKES, false))
+    val downloadLikes: StateFlow<Boolean> = _downloadLikes.asStateFlow()
+
+    fun setDownloadLikes(value: Boolean) {
+        _downloadLikes.value = value
+        prefs.edit().putBoolean(KEY_DOWNLOAD_LIKES, value).apply()
+        if (!value) setPendingDownloads(emptySet())
+    }
+
+    /** Hearted songs waiting for Wi-Fi to be downloaded. */
+    fun pendingDownloads(): Set<String> = prefs.getStringSet(KEY_PENDING_DOWNLOADS, null).orEmpty().toSet()
+
+    fun setPendingDownloads(ids: Set<String>) {
+        prefs.edit().putStringSet(KEY_PENDING_DOWNLOADS, ids).apply()
+    }
+
+    /** How large lyrics are drawn, a step of [LYRICS_SIZES]; the second, 100%, at first. */
+    private val _lyricsSize = MutableStateFlow(prefs.getInt(KEY_LYRICS_SIZE, 1).coerceIn(LYRICS_SIZES.indices))
+    val lyricsSize: StateFlow<Int> = _lyricsSize.asStateFlow()
+
+    fun setLyricsSize(value: Int) {
+        val step = value.coerceIn(LYRICS_SIZES.indices)
+        _lyricsSize.value = step
+        prefs.edit().putInt(KEY_LYRICS_SIZE, step).apply()
+    }
+
     fun setQualityMobile(value: AudioQuality) {
         _qualityMobile.value = value
         prefs.edit().putString(KEY_QUALITY_MOBILE, value.name).apply()
@@ -110,7 +146,7 @@ class Preferences(context: Context) {
     /** Files on the phone have no date added here, so they start by title; the rest newest first. */
     private fun defaultSort(list: SortedList) = when (list) {
         SortedList.Device -> LibrarySort.Title
-        SortedList.Favorites, SortedList.Downloads -> LibrarySort.Added
+        SortedList.Favorites, SortedList.Downloads, SortedList.Playlists -> LibrarySort.Added
     }
 
     /** Reads an enum by name, falling back to [default] when unset or no longer known. */
@@ -126,12 +162,22 @@ class Preferences(context: Context) {
         const val KEY_BLACK = "pure_black"
         const val KEY_QUALITY = "audio_quality"
         const val KEY_QUALITY_MOBILE = "audio_quality_mobile"
+        const val KEY_QUALITY_DOWNLOAD = "audio_quality_download"
+        const val KEY_LYRICS_SIZE = "lyrics_size"
+        const val KEY_DOWNLOAD_LIKES = "download_likes"
+        const val KEY_PENDING_DOWNLOADS = "pending_like_downloads"
         const val KEY_RESUME_ON_CONNECT = "resume_on_connect"
     }
 }
 
-/** How a list in the library is ordered: as it was added (newest first), by title, or by artist. */
-enum class LibrarySort { Added, Title, Artist }
+/**
+ * How a list in the library is ordered: as it was added (newest first), by title, by artist, or,
+ * for playlists, by how many songs they hold.
+ */
+enum class LibrarySort { Added, Title, Artist, Count }
+
+/** The sizes lyrics can be drawn at, as a share of the normal size. */
+val LYRICS_SIZES = listOf(0.9f, 1f, 1.2f, 1.4f)
 
 /** The library lists the user can put in another order. */
-enum class SortedList { Favorites, Downloads, Device }
+enum class SortedList { Favorites, Downloads, Device, Playlists }

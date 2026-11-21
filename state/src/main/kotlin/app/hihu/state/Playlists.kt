@@ -25,14 +25,21 @@ class Playlists(private val store: Store, private val scope: CoroutineScope) {
 
     private val contents = MutableStateFlow<Map<Long, List<Song>>>(emptyMap())
 
+    private val _members = MutableStateFlow<Map<Long, Set<String>>>(emptyMap())
+
+    /** The song ids in each playlist, so adding a song twice can be noticed before it happens. */
+    val members: StateFlow<Map<Long, Set<String>>> = _members.asStateFlow()
+
     init {
         scope.launch { reloadAll() }
     }
 
-    /** The songs of playlist [id], in order; null until they have been read. */
-    fun songs(id: Long): Flow<List<Song>?> {
+    /** The songs of playlist [id], in order; null until [open] has read them. */
+    fun songs(id: Long): Flow<List<Song>?> = contents.map { it[id] }
+
+    /** Reads playlist [id]'s songs into [songs], unless they are read already. */
+    fun open(id: Long) {
         if (id !in contents.value) scope.launch { reload(id) }
-        return contents.map { it[id] }
     }
 
     /** Makes a playlist called [name] holding [songs], and passes its id to [created]. */
@@ -114,6 +121,12 @@ class Playlists(private val store: Store, private val scope: CoroutineScope) {
                 """,
                 null,
             ).all { PlaylistSummary(it.getLong(0), it.getString(1), it.getInt(2), it.getString(3)) }
+        }
+        _members.value = store.run { db ->
+            db.rawQuery("SELECT playlist_id, song_id FROM playlist_songs", null)
+                .all { it.getLong(0) to it.getString(1) }
+                .groupBy({ it.first }, { it.second })
+                .mapValues { it.value.toSet() }
         }
     }
 }

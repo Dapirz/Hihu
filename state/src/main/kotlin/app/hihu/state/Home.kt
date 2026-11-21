@@ -1,7 +1,10 @@
 package app.hihu.state
 
 import android.util.Log
+import app.hihu.music.Collection
 import app.hihu.music.MusicFeed
+import java.util.Calendar
+import kotlinx.coroutines.flow.asStateFlow
 import app.hihu.music.MusicRadio
 import app.hihu.music.Shelf
 import app.hihu.music.Song
@@ -66,18 +69,56 @@ class Home(
         }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private val recentSongs = history.recent
+    private val history = history
+
+    private val _releases = MutableStateFlow<List<Collection>>(emptyList())
+
+    /**
+     * This year's and last year's albums and singles by the artists played most lately, newest
+     * first; empty until loaded, or when there are none.
+     */
+    val releases: StateFlow<List<Collection>> = _releases.asStateFlow()
+    private var releasesJob: Job? = null
+    private var releasesAt = 0L
 
     /** Loads the shelves and the similar-artist row, unless they already have. */
     fun open() {
         val now = pager.state.value
         if (!now.loaded && !now.loading) pager.load { feed.home() }
         loadSimilar()
+        loadReleases()
     }
 
     fun refresh() {
         pager.load { feed.home() }
         similarSeed = null
         loadSimilar()
+        releasesAt = 0L
+        loadReleases()
+    }
+
+    /** Looks up the newest releases of the artists played most, at most once a day. */
+    private fun loadReleases() {
+        if (System.currentTimeMillis() - releasesAt < RELEASES_EVERY_MS || releasesJob?.isActive == true) return
+        releasesJob = scope.launch {
+            try {
+                val artists = history.topArtists(RELEASE_DAYS, RELEASE_ARTISTS)
+                if (artists.isEmpty()) return@launch
+                val since = Calendar.getInstance().get(Calendar.YEAR) - 1
+                _releases.value = feed.latestReleases(artists)
+                    .filter { it.year >= since }
+                    .sortedByDescending { it.year }
+                    // An album often comes twice, as the clean and the explicit version; one is enough.
+                    .distinctBy { it.collection.title.trim().lowercase() }
+                    .take(ROW_SIZE)
+                    .map { it.collection }
+                releasesAt = System.currentTimeMillis()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "home: cannot load new releases", e)
+            }
+        }
     }
 
     fun loadMore() = pager.loadMore()
@@ -113,5 +154,8 @@ class Home(
         const val ROW_SIZE = 12
         /** How many recent songs count as played lately. */
         const val LATELY = 40
+        const val RELEASE_ARTISTS = 5
+        const val RELEASE_DAYS = 60L
+        const val RELEASES_EVERY_MS = 24 * 60 * 60 * 1000L
     }
 }

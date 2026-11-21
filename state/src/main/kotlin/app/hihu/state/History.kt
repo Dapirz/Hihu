@@ -39,6 +39,30 @@ class History(private val store: Store, private val scope: CoroutineScope) {
         }
     }
 
+    /**
+     * The [count] artists played most in the last [days] days, most played first. A credit like
+     * "A, B" counts for its first name, the one the song is mostly by.
+     */
+    suspend fun topArtists(days: Long, count: Int): List<String> {
+        val since = System.currentTimeMillis() - days * DAY_MS
+        val credits = store.run { db ->
+            db.rawQuery(
+                """
+                SELECT s.artist, COUNT(*) FROM history h JOIN songs s ON s.id = h.song_id
+                WHERE h.played_at >= ? AND s.artist IS NOT NULL GROUP BY s.artist
+                """,
+                arrayOf(since.toString()),
+            ).all { it.getString(0) to it.getInt(1) }
+        }
+        return credits
+            .groupBy({ (credit, _) -> credit.split(", ", " & ", " feat. ", " ft. ").first().trim() }, { it.second })
+            .mapValues { it.value.sum() }
+            .filterKeys { it.isNotEmpty() }
+            .entries.sortedByDescending { it.value }
+            .take(count)
+            .map { it.key }
+    }
+
     private suspend fun reload() {
         _recent.value = store.run { db ->
             db.rawQuery(
