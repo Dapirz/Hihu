@@ -1,6 +1,9 @@
 package app.hihu.views.chrome
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,8 +34,8 @@ import app.hihu.views.shared.Artwork
 import app.hihu.views.shared.rememberCoverColors
 
 /**
- * The floating pill above the bottom edge while something is loaded, tinted by the cover.
- * Tapping it opens the full player.
+ * The floating pill above the bottom edge while something is loaded, tinted by the cover, with a
+ * thin line along its bottom for how far the song has played. Tapping it opens the full player.
  */
 @Composable
 fun MiniPlayer(
@@ -56,45 +59,64 @@ fun MiniPlayer(
         shape = RoundedCornerShape(m.radiusPill),
         modifier = modifier.padding(horizontal = m.gapSm, vertical = m.gapSm),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(m.miniHeight)
-                .clickable(onClick = onOpen)
-                .semantics { onClick(label = openLabel) { onOpen(); true } }
-                .padding(start = m.gapMd, end = m.gapXs),
-        ) {
-            Artwork(now.artworkUri, m.miniArtwork, radius = m.miniArtwork / 2)
-            Column(modifier = Modifier.weight(1f).padding(horizontal = m.gapMd)) {
-                Text(
-                    now.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    now.artist ?: stringResource(R.string.unknown_artist),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.contentMuted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            IconButton(onClick = onPrevious, enabled = now.hasPrevious, colors = buttons) {
-                Icon(painterResource(Icons.previous), stringResource(R.string.previous), Modifier.size(m.iconMd))
-            }
-            IconButton(onClick = onToggle, colors = buttons) {
-                val (icon, label) = when (now.isPlaying) {
-                    true -> Icons.pause to R.string.pause
-                    false -> Icons.play to R.string.play
+        Box {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(m.miniHeight)
+                    .clickable(onClick = onOpen)
+                    .semantics { onClick(label = openLabel) { onOpen(); true } }
+                    .padding(start = m.gapMd, end = m.gapXs),
+            ) {
+                Artwork(now.artworkUri, m.miniArtwork, radius = m.miniArtwork / 2)
+                Column(modifier = Modifier.weight(1f).padding(horizontal = m.gapMd)) {
+                    Text(
+                        now.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        now.artist ?: stringResource(R.string.unknown_artist),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.contentMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Icon(painterResource(icon), stringResource(label), Modifier.size(m.iconLg))
+                IconButton(onClick = onPrevious, enabled = now.hasPrevious, colors = buttons) {
+                    Icon(painterResource(Icons.previous), stringResource(R.string.previous), Modifier.size(m.iconMd))
+                }
+                IconButton(onClick = onToggle, colors = buttons) {
+                    val (icon, label) = when (now.isPlaying) {
+                        true -> Icons.pause to R.string.pause
+                        false -> Icons.play to R.string.play
+                    }
+                    Icon(painterResource(icon), stringResource(label), Modifier.size(m.iconLg))
+                }
+                IconButton(onClick = onNext, enabled = now.hasNext, colors = buttons) {
+                    Icon(painterResource(Icons.next), stringResource(R.string.next), Modifier.size(m.iconMd))
+                }
             }
-            IconButton(onClick = onNext, enabled = now.hasNext, colors = buttons) {
-                Icon(painterResource(Icons.next), stringResource(R.string.next), Modifier.size(m.iconMd))
+            // Inset by the corner radius and lifted off the edge, so the line sits inside the pill.
+            val played = when (now.durationMs > 0) {
+                true -> (now.positionMs.toFloat() / now.durationMs).coerceIn(0f, 1f)
+                false -> 0f
+            }
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = m.radiusPill, end = m.radiusPill, bottom = m.gapXs)
+                    .fillMaxWidth()
+                    .height(m.miniProgress)
+                    .background(colors.contentMuted.copy(alpha = TRACK_ALPHA)),
+            ) {
+                Box(Modifier.fillMaxWidth(played).fillMaxHeight().background(colors.content))
             }
         }
     }
 }
+
+private const val TRACK_ALPHA = 0.3f
