@@ -6,6 +6,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.PlaybackException
 import android.media.AudioDeviceCallback
@@ -74,6 +75,15 @@ class PlaybackService : MediaSessionService() {
         player.addListener(object : Player.Listener {
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 if (playWhenReady) (application as HihuApplication).state.playback.connect()
+                // Remember a pause that came from unplugging, the only one plugging back in undoes.
+                // The player reports unplugging even when the user had already paused, so it only
+                // counts when the song was playing up to then.
+                val wasPlaying = playing
+                playing = playWhenReady
+                unpluggedAt = when (wasPlaying && !playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY) {
+                    true -> SystemClock.elapsedRealtime()
+                    false -> null
+                }
             }
 
             // A streamed song also holds a Wi-Fi lock, so Wi-Fi does not doze off under it with the
@@ -161,18 +171,30 @@ class PlaybackService : MediaSessionService() {
 
     private fun online(): Boolean = connectivity.activeNetwork != null
 
+    /** When the song was paused by the headphones coming out; null after any other pause or play. */
+    private var unpluggedAt: Long? = null
+
+    /** Whether the player was set to play, as of its last change; the service starts paused. */
+    private var playing = false
+
     /**
-     * Plays on when headphones connect, if the user turned that on and a song is paused. Only
-     * while this service runs: Android does not let a closed app start playing on its own.
+     * Plays on when headphones connect, if the user turned that on and the song was paused by
+     * unplugging them a little while ago. Not when the user paused it, and not while another app,
+     * like a video app, is playing sound: plugging in for that app must not start Hihu. Only while
+     * this service runs: Android does not let a closed app start playing on its own.
      */
     private val headphones = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
             val app = application as HihuApplication
             if (!app.state.preferences.resumeOnConnect.value) return
             if (addedDevices.none { it.isSink && it.type in HEADPHONES }) return
+            val since = unpluggedAt ?: return
+            if (SystemClock.elapsedRealtime() - since > RESUME_WINDOW_MS) return
+            if (audio.isMusicActive) return
             val player = session?.player ?: return
             if (player.playWhenReady || player.mediaItemCount == 0) return
             if (player.playbackState == Player.STATE_IDLE) player.prepare()
+            Log.i(TAG, "playback: headphones are back, playing on")
             player.play()
         }
     }
@@ -237,6 +259,8 @@ class PlaybackService : MediaSessionService() {
         const val TAG = "Hihu"
         const val MAX_RETRIES = 3
         const val FIRST_RETRY_MS = 2_000L
+        /** How long after unplugging, plugging back in still carries the song on. */
+        const val RESUME_WINDOW_MS = 30 * 60 * 1000L
 
         /** Failures the network may get over: a dropped or slow connection, or a refused URL. */
         val NETWORK_ERRORS = setOf(

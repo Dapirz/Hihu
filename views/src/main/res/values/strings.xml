@@ -205,7 +205,7 @@
     <string name="quality_wifi">Streaming quality on Wi-Fi</string>
     <string name="quality_mobile">Streaming quality on mobile data</string>
     <string name="resume_on_connect">Play when headphones connect</string>
-    <string name="resume_on_connect_detail">When Bluetooth or wired headphones connect, a paused song carries on. Only while Hihu is still running in the background.</string>
+    <string name="resume_on_connect_detail">A song paused because headphones came out or disconnected carries on when they connect again within 30 minutes. Not if you paused it yourself, or another app is playing sound. Only while Hihu is still running in the background.</string>
     <string name="hide_song">Don\'t play this again</string>
     <string name="hidden_songs">Hidden songs</string>
     <string name="hidden_songs_show">See the list</string>

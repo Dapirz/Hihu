@@ -198,7 +198,7 @@
     <string name="quality_wifi">Kualitas streaming lewat Wi-Fi</string>
     <string name="quality_mobile">Kualitas streaming lewat data seluler</string>
     <string name="resume_on_connect">Lanjut saat earphone tersambung</string>
-    <string name="resume_on_connect_detail">Saat earphone Bluetooth atau kabel tersambung, lagu yang dijeda langsung lanjut. Hanya selama Hihu masih berjalan di latar belakang.</string>
+    <string name="resume_on_connect_detail">Lagu yang terjeda karena earphone dicabut atau terputus akan lanjut saat earphone tersambung lagi dalam 30 menit. Tidak jika kamu menjedanya sendiri atau app lain sedang memutar suara. Hanya selama Hihu masih berjalan di latar belakang.</string>
     <string name="hide_song">Jangan putar lagi</string>
     <string name="hidden_songs">Lagu yang disembunyikan</string>
     <string name="hidden_songs_show">Lihat daftarnya</string>
