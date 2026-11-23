@@ -16,7 +16,7 @@ state/          app-wide state holders and all async work: Playback, Library, Se
                 Account (the signed-in session, encrypted with the Android Keystore in SessionStore),
                 AccountLikes (signed in, a heart is also liked on the account, one way, through a queue),
                 HiddenSongs (songs never to come up again in a radio or on Home), LikedDownloads
-                (hearted songs downloaded over Wi-Fi), BugReport (the log a user shares for a bug)
+                (hearted songs downloaded, over Wi-Fi or mobile data too), BugReport (the log a user shares for a bug)
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
                 MusicBrowse, MusicAccount, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider
