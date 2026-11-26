@@ -7,8 +7,8 @@ class LinkedPlaylist(val collection: Collection, val songs: Page<Song>)
 class ContentUnavailable(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
- * The links people share: opens playlists from them, such as `youtube.com/playlist?list=…`, and
- * gives the link to share for a song.
+ * The links people share: opens playlists and songs from them, such as
+ * `youtube.com/playlist?list=…` or `youtu.be/…`, and gives the link to share for a song.
  */
 interface PlaylistLinks {
     /** The web link to share for [song], or null for a song with none, like a file on the phone. */
@@ -20,4 +20,11 @@ interface PlaylistLinks {
      * when the network fails. Callers run it off the main thread.
      */
     suspend fun playlist(link: String): LinkedPlaylist?
+
+    /**
+     * The song [link] points at, such as `music.youtube.com/watch?v=…` or `youtu.be/…`, or null
+     * when it is not a song link this provider knows. Throws [ContentUnavailable] for a song that
+     * is private or gone, and other exceptions when the network fails.
+     */
+    suspend fun song(link: String): Song?
 }

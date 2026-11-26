@@ -240,6 +240,27 @@ class YouTubeMusic(
         LinkedPlaylist(collection, Page(first.items, first.next, collection.count))
     }
 
+    override suspend fun song(link: String): Song? = io {
+        // The handler reads music.youtube.com, www and m.youtube.com and youtu.be, and drops `si=` and the like.
+        val id = runCatching { YoutubeStreamLinkHandlerFactory.getInstance().getId(link) }.getOrNull()
+            ?: return@io null
+        val extractor = service.getStreamExtractor("$WATCH_URL$id")
+        try {
+            extractor.fetchPage()
+        } catch (e: ContentNotAvailableException) {
+            throw ContentUnavailable("youtube: song unavailable", e)
+        }
+        Song(
+            id = "yt:$id",
+            title = extractor.name,
+            artist = extractor.uploaderName?.removeSuffix(" - Topic")?.takeIf { it.isNotBlank() },
+            album = null,
+            durationMs = extractor.length.takeIf { it > 0 }?.times(1000) ?: 0,
+            uri = "$SCHEME://$id",
+            artworkUri = artwork(extractor.thumbnails),
+        )
+    }
+
     override suspend fun trending(): Chart = io {
         // YouTube Charts (charts.youtube.com) now wants a reCAPTCHA token with every request, so the
         // chart comes from YouTube Music's own charts page, which the anonymous client can read.

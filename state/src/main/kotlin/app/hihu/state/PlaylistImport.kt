@@ -125,9 +125,10 @@ class PlaylistImport(
         const val TAG = "Hihu"
         const val MAX_SONGS = 5000
         const val DEFAULT_NAME = "YouTube"
-        val LINK = Regex("""https?://\S+""")
-
-        /** The first web link in [text], which a share from YouTube wraps in a sentence. */
-        fun linkIn(text: String): String? = LINK.find(text)?.value
     }
 }
+
+private val LINK = Regex("""https?://\S+""")
+
+/** The first web link in [text], which a share from YouTube wraps in a sentence. */
+internal fun linkIn(text: String): String? = LINK.find(text)?.value

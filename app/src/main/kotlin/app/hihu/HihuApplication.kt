@@ -122,7 +122,7 @@ class HihuApplication : Application() {
         state = AppState(
             navigator = Navigator(Destination.Home),
             library = Library(MediaStoreLibrary(this), scope),
-            search = Search(youtube, scope, SearchHistory(store, scope)),
+            search = Search(youtube, youtube, scope, SearchHistory(store, scope)),
             collections = Collections(youtube, scope),
             playlists = playlists,
             favorites = favorites,

@@ -1,7 +1,10 @@
 package app.hihu.state
 
 import android.util.Log
+import app.hihu.music.ContentUnavailable
 import app.hihu.music.MusicSearch
+import app.hihu.music.Page
+import app.hihu.music.PlaylistLinks
 import app.hihu.music.SearchKind
 import app.hihu.music.SearchResult
 import kotlinx.coroutines.CancellationException
@@ -22,10 +25,13 @@ data class SearchQuery(
 
 /**
  * Searches a [MusicSearch] and keeps the results for the whole app. [query] holds what was
- * submitted and the suggestions; [results] the pages of hits, appended by [loadMore].
+ * submitted and the suggestions; [results] the pages of hits, appended by [loadMore]. A pasted
+ * song link, such as `youtu.be/…`, comes back as that one song instead of a search for the text.
  */
 class Search(
     private val source: MusicSearch,
+    /** Reads pasted song links. */
+    private val links: PlaylistLinks,
     private val scope: CoroutineScope,
     /** Every submitted query is noted here, for the list shown while the field is empty. */
     val history: SearchHistory,
@@ -86,8 +92,23 @@ class Search(
         val (text, kind) = _query.value
         when (text.isEmpty()) {
             true -> pager.clear()
-            false -> pager.load { source.search(text, kind) }
+            false -> pager.load { linked(text) ?: source.search(text, kind) }
         }
+    }
+
+    /**
+     * The song a link in [text] points at, as the only result, or null when [text] holds no song
+     * link and should be searched for. A link to a song that is private or gone finds nothing.
+     */
+    private suspend fun linked(text: String): Page<SearchResult>? {
+        val link = linkIn(text) ?: return null
+        val song = try {
+            links.song(link)
+        } catch (e: ContentUnavailable) {
+            Log.w(TAG, "search: the linked song is unavailable", e)
+            return Page(emptyList(), null)
+        } ?: return null
+        return Page(listOf(SearchResult.Track(song)), null)
     }
 
     private companion object {
