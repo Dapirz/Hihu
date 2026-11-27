@@ -238,6 +238,12 @@
         <item quantity="other">%d songs hidden</item>
     </plurals>
     <string name="autoplay">Keep playing</string>
+    <string name="album_versions">Play music videos as songs</string>
+    <string name="album_versions_detail">A music video in a playlist, a radio or the queue plays as its album version, without the intro and skits. One picked from Videos in search stays a video.</string>
+    <string name="open_artist">Open the artist</string>
+    <string name="go_to_artist">Go to %1$s</string>
+    <string name="play_music_video">Play the music video</string>
+    <string name="play_album_version">Play the album version</string>
     <string name="autoplay_detail">When a playlist or album ends, go on with songs like the last one from YouTube Music. Not for files on the phone, or with shuffle or repeat on.</string>
     <string name="normalize_detail">Songs louder than YouTube\'s usual level are turned down, so one song is not much louder than the next. YouTube songs only.</string>
 </resources>

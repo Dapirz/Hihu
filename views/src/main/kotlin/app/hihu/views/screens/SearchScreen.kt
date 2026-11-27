@@ -148,7 +148,11 @@ fun SearchScreen(
                         playingId = now.songId,
                         padding = listPadding,
                         // Like YouTube Music: the tapped song, then songs like it, not the other hits.
-                        onPlay = { index -> radio.start(songs[index]) },
+                        onPlay = { index ->
+                            // A video picked from the videos stays a video, not its album version.
+                            if (query.kind == SearchKind.Videos) playback.keepAsVideo(songs[index])
+                            radio.start(songs[index])
+                        },
                         more = results.more(search::loadMore),
                         selectionBar = { chosen, done -> SelectionBar(chosen, done) },
                         menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },

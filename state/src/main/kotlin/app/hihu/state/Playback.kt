@@ -11,7 +11,10 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
+import app.hihu.music.MusicVersions
 import app.hihu.music.Song
+import app.hihu.music.Versions
+import androidx.media3.common.C
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** A snapshot of the player for the UI. [song] is null when nothing is loaded. */
 data class NowPlaying(
@@ -34,7 +38,12 @@ data class NowPlaying(
     val hasNext: Boolean = false,
     val shuffle: Boolean = false,
     val repeat: Repeat = Repeat.Off,
+    /** The song and the music video of what plays, when both are known, so the player can switch. */
+    val versions: Versions? = null,
 ) {
+    /** Whether what plays is the music video of a pair, as opposed to its album version. */
+    val isVideo: Boolean get() = song != null && versions?.isVideo(song.id) == true
+
     val songId: String? get() = song?.id
     val title: String get() = song?.title.orEmpty()
     val artist: String? get() = song?.artist
@@ -53,6 +62,11 @@ enum class Repeat { Off, All, One }
  *
  * The queue is saved through [saved] whenever it changes, and put back when the app starts with
  * nothing loaded. [onSongStarted] hears about every song that begins, for the history.
+ *
+ * A music video the listener did not pick as one plays as its album version, found through
+ * [versions] before it starts, while [albumVersions] is on and the video is not [downloaded].
+ * Every track from such a provider is paired with its other version as it plays, so the player
+ * can switch with [switchVersion].
  */
 class Playback(
     private val context: Context,
@@ -60,6 +74,9 @@ class Playback(
     private val scope: CoroutineScope,
     private val saved: SavedQueue,
     private val onSongStarted: (Song) -> Unit,
+    private val versions: MusicVersions,
+    private val albumVersions: StateFlow<Boolean>,
+    private val downloaded: (Song) -> Boolean,
 ) {
     private val _state = MutableStateFlow(NowPlaying())
     val state: StateFlow<NowPlaying> = _state.asStateFlow()
@@ -77,6 +94,27 @@ class Playback(
     private var lastStarted: String? = null
     private var visible = false
 
+    /** The pairs found this run, under both of their ids. Read and written on the main thread only. */
+    private val pairs = HashMap<String, Versions>()
+
+    /** Music videos to play as videos for the rest of the run: picked as one, or switched to. */
+    private val keptVideos = HashSet<String>()
+
+    /** Looks up the album version of a track before it plays; [startingId] is that track. */
+    private var starting: Job? = null
+    private var startingId: String? = null
+
+    /** What to do once [starting] is done, carried over when a newer lookup cancels it. */
+    private var onChecked: ((MediaController) -> Unit)? = null
+
+    /** Looks up the album version of the next track while this one plays; [aheadId] is that track. */
+    private var ahead: Job? = null
+    private var aheadId: String? = null
+
+    /** Looks up the other version of the track that plays, for the switch. */
+    private var pairing: Job? = null
+    private var pairingId: String? = null
+
     /** Counts the times the queue was replaced, so a radio can tell when it is no longer playing. */
     var generation: Int = 0
         private set
@@ -86,6 +124,10 @@ class Playback(
             if (events.contains(Player.EVENT_TIMELINE_CHANGED)) {
                 readQueue()
                 saveQueue()
+            }
+            // Run outside the listener, since replacing an item calls it again.
+            if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) || events.contains(Player.EVENT_TIMELINE_CHANGED)) {
+                context.mainExecutor.execute(::follow)
             }
             sync()
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) || events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
@@ -181,8 +223,12 @@ class Playback(
         shuffle?.let { c.shuffleModeEnabled = it }
         generation++
         c.setMediaItems(songs.map(::toMediaItem), start, 0)
-        c.prepare()
-        c.play()
+        // Nothing is fetched until the first track is the recording it should play as.
+        val first = songs.getOrNull(start) ?: return
+        whenChecked(first) {
+            it.prepare()
+            it.play()
+        }
     }
 
     /** Plays the whole of [songs], from the top or in a random order. */
@@ -220,9 +266,16 @@ class Playback(
     fun skipTo(index: Int) {
         val c = controller ?: return
         if (index !in 0 until c.mediaItemCount) return
-        c.seekTo(index, 0)
-        if (c.playbackState == Player.STATE_IDLE) c.prepare()
-        c.play()
+        val target = toSong(c.getMediaItemAt(index))
+        // What plays goes on until the target is the recording it should play as.
+        whenChecked(target) { now ->
+            val swapped = pairs[target.id]?.takeIf { it.isVideo(target.id) && swappable(target) }?.song
+            val at = indexOf(now, swapped?.id ?: target.id, index)
+            if (at < 0) return@whenChecked
+            now.seekTo(at, 0)
+            if (now.playbackState == Player.STATE_IDLE) now.prepare()
+            now.play()
+        }
     }
 
     fun removeAt(index: Int) {
@@ -291,8 +344,163 @@ class Playback(
         val c = controller ?: return
         if (c.isPlaying) return c.pause()
         // A restored queue is not prepared until it is played, so opening the app costs no data.
-        if (c.playbackState == Player.STATE_IDLE) c.prepare()
-        c.play()
+        if (c.playbackState != Player.STATE_IDLE) return c.play()
+        val current = c.currentMediaItem?.let(::toSong) ?: return
+        whenChecked(current) {
+            it.prepare()
+            it.play()
+        }
+    }
+
+    /** Keeps [song] a music video when it plays, as one picked from a search for videos is. */
+    fun keepAsVideo(song: Song) {
+        keptVideos += song.id
+    }
+
+    /**
+     * Plays the other recording of what plays from where this one stands. Going to the video
+     * keeps it a video for the rest of the run; going to the song lets the swap happen again.
+     */
+    fun switchVersion() {
+        val c = controller ?: return
+        val current = c.currentMediaItem?.let(::toSong) ?: return
+        val pair = pairs[current.id] ?: return
+        val target = when (pair.isVideo(current.id)) {
+            true -> {
+                keptVideos -= pair.video.id
+                pair.song
+            }
+            false -> {
+                keptVideos += pair.video.id
+                pair.video
+            }
+        }
+        val index = c.currentMediaItemIndex
+        val position = c.currentPosition
+        c.replaceMediaItem(index, toMediaItem(target))
+        c.seekTo(index, target.durationMs.takeIf { it > 0 }?.let { position.coerceAtMost(it) } ?: position)
+    }
+
+    /**
+     * Whether [song] may play as its album version: the setting is on, its provider pairs it,
+     * and it is neither kept a video nor downloaded, which would make it stream again.
+     */
+    private fun swappable(song: Song) =
+        albumVersions.value && versions.hasVersions(song) && song.id !in keptVideos && !downloaded(song)
+
+    /** [song]'s album version when it is a music video that should play as one and the pair is known. */
+    private fun knownAlbum(song: Song): Song? =
+        pairs[song.id]?.takeIf { it.isVideo(song.id) && swappable(song) }?.song
+
+    /** Whether [song] should play as its album version, as far as is known or still to be looked up. */
+    private fun needsCheck(song: Song) = knownAlbum(song) != null || (swappable(song) && pairs[song.id] == null)
+
+    /**
+     * Runs [then] once [song], somewhere in the queue, is the recording it should play as: at
+     * once when nothing needs looking up, or after a lookup that waits [SWAP_PATIENCE_MS] at
+     * most. A newer call cancels the lookup but still runs this [then] after its own.
+     */
+    private fun whenChecked(song: Song, then: (MediaController) -> Unit) {
+        val c = controller ?: return
+        val carried = onChecked
+        val both: (MediaController) -> Unit = { now ->
+            carried?.invoke(now)
+            then(now)
+        }
+        starting?.cancel()
+        starting = null
+        startingId = null
+        onChecked = null
+        knownAlbum(song)?.let { album -> replace(c, song.id, album) }
+        if (!swappable(song) || pairs[song.id] != null) return both(c)
+        onChecked = both
+        startingId = song.id
+        starting = scope.launch {
+            withTimeoutOrNull(SWAP_PATIENCE_MS) { lookUp(song) }
+            val now = controller ?: return@launch
+            knownAlbum(song)?.let { album -> replace(now, song.id, album) }
+            val run = onChecked
+            onChecked = null
+            startingId = null
+            run?.invoke(now)
+            // A video that stays a video is heard from now on, for the history.
+            sync()
+        }
+    }
+
+    /**
+     * Follows the track that plays: plays it as its album version when it should, pairs it for
+     * the switch, and looks up the next track ahead, so it is swapped before it starts.
+     */
+    private fun follow() {
+        val c = controller ?: return
+        val current = c.currentMediaItem?.let(::toSong) ?: return
+        if (current.id != startingId && needsCheck(current)) whenChecked(current) {}
+        pair(current)
+        lookAhead(c)
+    }
+
+    /** Looks up the other version of [song] without changing what plays, so the switch shows for songs too. */
+    private fun pair(song: Song) {
+        if (pairs[song.id] != null || !versions.hasVersions(song)) return
+        if (pairing?.isActive == true && pairingId == song.id) return
+        pairing?.cancel()
+        pairingId = song.id
+        pairing = scope.launch { lookUp(song) }
+    }
+
+    /** Swaps the track after the one playing for its album version before it starts. */
+    private fun lookAhead(c: MediaController) {
+        val next = c.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET && it != c.currentMediaItemIndex } ?: return
+        val song = toSong(c.getMediaItemAt(next))
+        knownAlbum(song)?.let { album -> return replace(c, song.id, album) }
+        if (!swappable(song) || pairs[song.id] != null) return
+        if (ahead?.isActive == true && aheadId == song.id) return
+        ahead?.cancel()
+        aheadId = song.id
+        ahead = scope.launch {
+            lookUp(song)
+            val now = controller ?: return@launch
+            // A track that started meanwhile is left to its own lookup, so it does not start over.
+            if (now.currentMediaItem?.mediaId == song.id) return@launch
+            knownAlbum(song)?.let { album -> replace(now, song.id, album) }
+        }
+    }
+
+    /** Asks the provider for [song]'s pair and keeps it under both ids; null when it has none or the lookup failed. */
+    private suspend fun lookUp(song: Song): Versions? {
+        val found = try {
+            versions.versions(song)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "playback: cannot look up the other version of a track", e)
+            null
+        } ?: return null
+        pairs[found.song.id] = found
+        pairs[found.video.id] = found
+        sync()
+        return found
+    }
+
+    /**
+     * Puts [with] in place of the track [id]: the one playing when it is that one, and otherwise
+     * its first copy in the queue. The one playing starts over as the new track.
+     */
+    private fun replace(c: MediaController, id: String, with: Song) {
+        val index = indexOf(c, id, c.currentMediaItemIndex)
+        if (index < 0) return
+        val playing = index == c.currentMediaItemIndex
+        Log.i(TAG, "playback: a music video plays as its album version")
+        c.replaceMediaItem(index, toMediaItem(with))
+        // Under shuffle the player could move on to another track once the old one is gone.
+        if (playing) c.seekTo(index, 0)
+    }
+
+    /** Where the track [id] is in the queue: at [hint] when it is there, else its first copy; -1 when it is gone. */
+    private fun indexOf(c: MediaController, id: String, hint: Int): Int {
+        if (hint in 0 until c.mediaItemCount && c.getMediaItemAt(hint).mediaId == id) return hint
+        return (0 until c.mediaItemCount).firstOrNull { c.getMediaItemAt(it).mediaId == id } ?: -1
     }
 
     fun next() = controller?.seekToNextMediaItem() ?: Unit
@@ -315,8 +523,10 @@ class Playback(
             hasNext = c.hasNextMediaItem(),
             shuffle = c.shuffleModeEnabled,
             repeat = repeatOf(c.repeatMode),
+            versions = song?.let { pairs[it.id] },
         )
-        if (c.isPlaying && song != null && song.id != lastStarted) {
+        // A video about to give way to its album version is not one the listener heard.
+        if (c.isPlaying && song != null && song.id != lastStarted && song.id != startingId) {
             lastStarted = song.id
             onSongStarted(song)
         }
@@ -401,6 +611,8 @@ class Playback(
         const val TAG = "Hihu"
         const val TICK_MS = 500L
         const val SAVE_DELAY_MS = 500L
+        /** How long a music video waits for its album version before it plays as it is. */
+        const val SWAP_PATIENCE_MS = 4_000L
     }
 }
 

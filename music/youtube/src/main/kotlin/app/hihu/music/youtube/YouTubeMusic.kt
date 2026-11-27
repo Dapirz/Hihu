@@ -19,6 +19,8 @@ import app.hihu.music.CollectionKind
 import app.hihu.music.MusicBrowse
 import app.hihu.music.MusicRadio
 import app.hihu.music.MusicSearch
+import app.hihu.music.MusicVersions
+import app.hihu.music.Versions
 import app.hihu.music.Page
 import app.hihu.music.Release
 import app.hihu.music.ResolvedStream
@@ -68,10 +70,16 @@ class YouTubeMusic(
     private val quality: () -> AudioQuality = { AudioQuality.Normal },
     /** The quality a song is downloaded in, read as each download starts. */
     private val downloadQuality: () -> AudioQuality = quality,
-) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, LyricsProvider, MusicAccount, SongLoudness, StreamResolver {
+) : MusicSearch, MusicBrowse, MusicRadio, MusicCharts, MusicFeed, PlaylistLinks, LyricsProvider, MusicAccount, MusicVersions, SongLoudness, StreamResolver {
 
     private val service = ServiceList.YouTube
     private val resolved = ConcurrentHashMap<String, Cached>()
+
+    /** Whether each video id seen is a music video (true) or a song (false). */
+    private val kinds = ConcurrentHashMap<String, Boolean>()
+
+    /** The versions found for each track id, misses too, so a track is looked up once per run. */
+    private val paired = ConcurrentHashMap<String, Paired>()
 
     private val feed: YouTubeFeed
 
@@ -84,8 +92,8 @@ class YouTubeMusic(
         val country = locale.country.ifBlank { FALLBACK_COUNTRY }
         val language = locale.language.ifBlank { "en" }
         NewPipe.init(HttpDownloader(), Localization(locale.language, country), ContentCountry(country))
-        feed = YouTubeFeed(InnerTube(language, country))
-        account = YouTubeFeed(InnerTube(language, country) { session })
+        feed = YouTubeFeed(InnerTube(language, country), kinds)
+        account = YouTubeFeed(InnerTube(language, country) { session }, kinds)
     }
 
     override val signInUrl: String = SIGN_IN_URL
@@ -165,8 +173,64 @@ class YouTubeMusic(
         }
         val extractor = service.getSearchExtractor(query, listOf(filter), "")
         extractor.fetchPage()
-        page(extractor.initialPage, { io { extractor.getPage(it) } }, ::toResult)
+        page(extractor.initialPage, { io { extractor.getPage(it) } }) { item -> toResult(item)?.also { noteKind(it, kind) } }
     }
+
+    /** Notes that a song search finds songs and a video search finds music videos. */
+    private fun noteKind(result: SearchResult, kind: SearchKind) {
+        val song = (result as? SearchResult.Track)?.song ?: return
+        val id = song.uri.removePrefix("$SCHEME://")
+        when (kind) {
+            SearchKind.Songs -> kinds[id] = false
+            SearchKind.Videos -> kinds[id] = true
+            else -> Unit
+        }
+    }
+
+    override fun hasVersions(song: Song): Boolean = knows(song.uri)
+
+    /**
+     * A music video's album version, from a signed-out song search for its title and artist, or
+     * a song's music video, from a video search. Whether the track is a video comes from where
+     * it was seen, or else from its watch page, which also gives a length a track lacks.
+     */
+    override suspend fun versions(song: Song): Versions? {
+        if (!hasVersions(song)) return null
+        paired[song.id]?.let { return it.versions }
+        val id = song.uri.removePrefix("$SCHEME://")
+        var track = song
+        var isVideo = kinds[id]
+        if (isVideo == null || track.durationMs <= 0) {
+            io { feed.watched(id) }?.let { watched ->
+                kinds[id] = watched.isVideo
+                isVideo = watched.isVideo
+                if (track.durationMs <= 0) track = track.copy(durationMs = watched.durationMs)
+            }
+        }
+        val found = when (isVideo) {
+            true -> AlbumVersions.songQuery(track)
+                ?.let { query -> hits(query, SearchKind.Songs).firstOrNull { it.id != track.id && AlbumVersions.sameSong(track, it) } }
+                ?.let { Versions(song = it, video = track) }
+            false -> AlbumVersions.videoQuery(track)
+                ?.let { query -> hits(query, SearchKind.Videos).firstOrNull { it.id != track.id && AlbumVersions.sameSong(it, track) } }
+                ?.let { Versions(song = track, video = it) }
+            null -> null
+        }
+        val answer = Paired(found)
+        paired[song.id] = answer
+        found?.let {
+            paired[it.song.id] = answer
+            paired[it.video.id] = answer
+        }
+        return found
+    }
+
+    /** The tracks among the first hits of a [kind] search for [query]. */
+    private suspend fun hits(query: String, kind: SearchKind): List<Song> =
+        search(query, kind).items.take(AlbumVersions.WEIGHED).mapNotNull { (it as? SearchResult.Track)?.song }
+
+    /** A [versions] answer, kept with its misses, which a map of nulls could not hold. */
+    private class Paired(val versions: Versions?)
 
     override suspend fun suggestions(query: String): List<String> = io {
         service.suggestionExtractor.suggestionList(query)

@@ -104,6 +104,7 @@ fun SettingsScreen(
     val black by preferences.black.collectAsStateWithLifecycle()
     val normalize by preferences.normalize.collectAsStateWithLifecycle()
     val autoplay by preferences.autoplay.collectAsStateWithLifecycle()
+    val albumVersions by preferences.albumVersions.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = m.gapXs)) {
@@ -208,6 +209,12 @@ fun SettingsScreen(
                     detail = R.string.autoplay_detail,
                     checked = autoplay,
                     onChange = preferences::setAutoplay,
+                )
+                Toggle(
+                    title = R.string.album_versions,
+                    detail = R.string.album_versions_detail,
+                    checked = albumVersions,
+                    onChange = preferences::setAlbumVersions,
                 )
                 Toggle(
                     title = R.string.resume_on_connect,

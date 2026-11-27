@@ -43,11 +43,13 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.music.Collection
+import app.hihu.music.SearchKind
 import app.hihu.music.Mood
 import app.hihu.music.Song
 import app.hihu.router.Destination
 import app.hihu.router.Navigator
 import app.hihu.state.Appearance
+import app.hihu.state.Artists
 import app.hihu.state.Collections
 import app.hihu.state.DownloadStatus
 import app.hihu.state.Downloads
@@ -103,6 +105,7 @@ class AppState(
     val navigator: Navigator,
     val library: Library,
     val search: Search,
+    val artists: Artists,
     val collections: Collections,
     val playlists: Playlists,
     val favorites: Favorites,
@@ -172,6 +175,8 @@ fun HihuRoot(app: AppState) {
                 }
                 app.downloads.download(songs)
             },
+            artists = app.artists,
+            openArtist = { name -> openArtist(app, name) },
         )
     }
     val progress by app.downloads.progress.collectAsStateWithLifecycle()
@@ -354,6 +359,29 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
 }
 
 /** Whether [destination] covers the whole screen, bottom bar and all. */
+/**
+ * Opens the page of the artist [name] once it is found, over the tab the player or queue covers;
+ * when no artist goes by that name, searches for artists by it instead.
+ */
+private fun openArtist(app: AppState, name: String) {
+    val navigator = app.navigator
+    val uncover = { while (isOverlay(navigator.stack.value.last()) && navigator.pop()) Unit }
+    app.artists.find(
+        name,
+        onFound = { artist ->
+            uncover()
+            app.collections.open(artist)
+            navigator.push(Destination.Collection(artist.id))
+        },
+        onMissing = {
+            uncover()
+            app.search.select(SearchKind.Artists)
+            app.search.submit(name)
+            navigator.select(Destination.Search)
+        },
+    )
+}
+
 private fun isOverlay(destination: Destination) = when (destination) {
     Destination.Player, Destination.Queue, Destination.Settings, Destination.SignIn -> true
     else -> false

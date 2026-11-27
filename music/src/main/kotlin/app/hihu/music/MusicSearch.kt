@@ -55,3 +55,27 @@ interface MusicBrowse {
     /** The first page of songs in [collection]. */
     suspend fun songs(collection: Collection): Page<Song>
 }
+
+/**
+ * The two recordings of one track: the plain [song] an album carries and its music [video], as
+ * when a playlist holds the video with its intro and skits.
+ */
+data class Versions(val song: Song, val video: Song) {
+    /** Whether the track [id] is one of the two. */
+    fun holds(id: String): Boolean = song.id == id || video.id == id
+
+    /** Whether the track [id] is the music video. */
+    fun isVideo(id: String): Boolean = video.id == id
+}
+
+/** Pairs a music video with the album song it shows, and a song with its music video. */
+interface MusicVersions {
+    /** Whether [song] came from this provider, so it may have another version here. */
+    fun hasVersions(song: Song): Boolean
+
+    /**
+     * [song] and its other recording, or null when no hit is surely the same recording. The
+     * answer is kept per track, so asking again costs nothing.
+     */
+    suspend fun versions(song: Song): Versions?
+}

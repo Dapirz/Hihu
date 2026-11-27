@@ -10,6 +10,7 @@ object Icons {
     val next = R.drawable.ic_skip_next
     val previous = R.drawable.ic_skip_previous
     val music = R.drawable.ic_music_note
+    val musicVideo = R.drawable.ic_music_video
     val back = R.drawable.ic_arrow_back
     val collapse = R.drawable.ic_expand_more
     val shuffle = R.drawable.ic_shuffle

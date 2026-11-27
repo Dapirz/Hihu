@@ -23,6 +23,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.music.Song
+import app.hihu.state.Artists
 import app.hihu.state.DownloadStatus
 import app.hihu.state.Downloads
 import app.hihu.state.HiddenSongs
@@ -48,6 +49,10 @@ class SongActions(
     val pickPlaylist: (List<Song>) -> Unit,
     /** Starts downloading, asking for the notification permission first when it is missing. */
     val download: (List<Song>) -> Unit,
+    /** Finds the names credited on a song. */
+    val artists: Artists,
+    /** Opens the page of the artist with this name, from wherever the app is. */
+    val openArtist: (String) -> Unit,
 )
 
 val LocalSongActions = staticCompositionLocalOf<SongActions> { error("SongActions is not provided") }
@@ -69,6 +74,7 @@ fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
         dismiss()
     }
     RadioItem(song, dismiss)
+    ArtistItems(song, dismiss)
     MenuItem(if (song.id in favorites) R.string.favorite_remove else R.string.favorite_add) {
         actions.favorites.toggle(song)
         dismiss()
@@ -80,6 +86,21 @@ fun ColumnScope.CommonSongItems(song: Song, dismiss: () -> Unit) {
     ShareItem(song, dismiss)
     DownloadItems(song, dismiss)
     HideItem(song, dismiss)
+}
+
+/** "Go to <artist>", one for each artist credited on [song], opening their page. */
+@Composable
+fun ArtistItems(song: Song, dismiss: () -> Unit) {
+    val actions = LocalSongActions.current
+    actions.artists.names(song).forEach { name ->
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.go_to_artist, name)) },
+            onClick = {
+                dismiss()
+                actions.openArtist(name)
+            },
+        )
+    }
 }
 
 /** "Start radio": [song] now, then songs like it without end, for a song that has a radio. */

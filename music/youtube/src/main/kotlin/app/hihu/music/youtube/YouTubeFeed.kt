@@ -19,7 +19,38 @@ import com.grack.nanojson.JsonObject
  * [Collection]s whose id is a playlist URL, the same kind search gives, so NewPipeExtractor can
  * open them; artists become channel URLs.
  */
-internal class YouTubeFeed(private val api: InnerTube) {
+internal class YouTubeFeed(
+    private val api: InnerTube,
+    /** Whether each video id seen in an answer is a music video (true) or a song (false), filled as pages are read. */
+    private val kinds: MutableMap<String, Boolean>,
+) {
+
+    /** A track as YouTube Music's watch page sees it: whether it is a music video, and its length. */
+    class Watched(val isVideo: Boolean, val durationMs: Long)
+
+    /**
+     * Whether [videoId] is a music video or a song, from the first entry of its watch queue,
+     * which is the track itself; null when the page does not say, as for a podcast episode.
+     */
+    fun watched(videoId: String): Watched? {
+        val item = findAll(api.next(videoId), QUEUE_ITEM).firstOrNull { it.getString("videoId", null) == videoId } ?: return null
+        val isVideo = isVideo(item) ?: return null
+        return Watched(isVideo, item.getObject("lengthText").runsText()?.let(::clockMs) ?: 0)
+    }
+
+    /** Whether the entry [json] plays a music video (true) or a song (false), from its music video type. */
+    private fun isVideo(json: JsonObject): Boolean? = when (
+        findString(json.getObject("navigationEndpoint"), "musicVideoType") ?: findString(json, "musicVideoType")
+    ) {
+        SONG_TYPE -> false
+        in VIDEO_TYPES -> true
+        else -> null
+    }
+
+    /** Notes whether [videoId], read from [json], is a music video or a song. */
+    private fun noteKind(videoId: String, json: JsonObject) {
+        isVideo(json)?.let { kinds[videoId] = it }
+    }
 
     fun home(): Page<Shelf> = homePage(sections(api.browse(browseId = HOME)))
 
@@ -143,6 +174,7 @@ internal class YouTubeFeed(private val api: InnerTube) {
             val length = item.getObject("lengthText").runsText()?.let(::clockMs) ?: 0
             val artwork = item.getObject("thumbnail").getArray("thumbnails").objects()
                 .maxByOrNull { it.getInt("width", 0) }?.getString("url", null)
+            noteKind(videoId, item)
             song(videoId, title, artists(item.getObject("longBylineText")), artwork, length)
         }
         val token = findObject(json, "nextRadioContinuationData")?.getString("continuation", null)
@@ -262,6 +294,7 @@ internal class YouTubeFeed(private val api: InnerTube) {
         }
         if (group != null) return SearchResult.Group(group)
         val videoId = row.getObject("playlistItemData").getString("videoId", null) ?: findString(row, "videoId") ?: return null
+        noteKind(videoId, row)
         val artist = columns.getOrNull(1)?.let(::artists)
         val length = row.getArray("fixedColumns").objects().firstOrNull()
             ?.getObject("musicResponsiveListItemFixedColumnRenderer")?.getObject("text")?.runsText()
@@ -299,6 +332,9 @@ internal class YouTubeFeed(private val api: InnerTube) {
 
     private companion object {
         const val HOME = "FEmusic_home"
+        /** A song as an album carries it; the other types are videos of one kind or another. */
+        const val SONG_TYPE = "MUSIC_VIDEO_TYPE_ATV"
+        val VIDEO_TYPES = setOf("MUSIC_VIDEO_TYPE_OMV", "MUSIC_VIDEO_TYPE_UGC")
         const val LYRICS_PREFIX = "MPLY"
         const val CHARTS = "FEmusic_charts"
         const val ROW = "musicResponsiveListItemRenderer"

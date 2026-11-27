@@ -15,6 +15,7 @@ import app.hihu.music.local.MediaStoreLibrary
 import app.hihu.music.youtube.YouTubeMusic
 import app.hihu.router.Destination
 import app.hihu.router.Navigator
+import app.hihu.state.Artists
 import app.hihu.state.Collections
 import app.hihu.state.Downloads
 import app.hihu.state.Explore
@@ -93,12 +94,16 @@ class HihuApplication : Application() {
         }
         normalizer = Normalizer(this, youtube, preferences.normalize, scope)
         offline = Offline(this, listOf(youtube), onDownload = normalizer::prefetch)
+        val downloads = Downloads(offline, store, scope)
         val playback = Playback(
             context = this,
             service = ComponentName(this, PlaybackService::class.java),
             scope = scope,
             saved = SavedQueue(store),
             onSongStarted = history::record,
+            versions = youtube,
+            albumVersions = preferences.albumVersions,
+            downloaded = { song -> downloads.songs.value.any { it.id == song.id } },
         )
         val playlists = Playlists(store, scope)
         // A hidden song leaves the queue now, and signed in it is disliked on the account too.
@@ -109,7 +114,6 @@ class HihuApplication : Application() {
         // Signing in is optional; signed out, everything works anonymously.
         val account = Account(youtube, this, scope)
         likes = AccountLikes(youtube, account.status, store, scope)
-        val downloads = Downloads(offline, store, scope)
         likedDownloads = LikedDownloads(
             enabled = preferences.downloadLikes,
             mobileToo = preferences.downloadLikesMobile,
@@ -123,6 +127,7 @@ class HihuApplication : Application() {
             navigator = Navigator(Destination.Home),
             library = Library(MediaStoreLibrary(this), scope),
             search = Search(youtube, youtube, scope, SearchHistory(store, scope)),
+            artists = Artists(youtube, scope),
             collections = Collections(youtube, scope),
             playlists = playlists,
             favorites = favorites,

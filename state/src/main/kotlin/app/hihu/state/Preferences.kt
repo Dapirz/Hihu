@@ -67,6 +67,15 @@ class Preferences(context: Context) {
         prefs.edit().putBoolean(KEY_AUTOPLAY, value).apply()
     }
 
+    /** Playing a music video from a playlist, a radio or the queue as its album version, without the intro and skits. On by default. */
+    private val _albumVersions = MutableStateFlow(prefs.getBoolean(KEY_ALBUM_VERSIONS, true))
+    val albumVersions: StateFlow<Boolean> = _albumVersions.asStateFlow()
+
+    fun setAlbumVersions(value: Boolean) {
+        _albumVersions.value = value
+        prefs.edit().putBoolean(KEY_ALBUM_VERSIONS, value).apply()
+    }
+
     fun setAppearance(value: Appearance) {
         _appearance.value = value
         prefs.edit().putString(KEY_APPEARANCE, value.name).apply()
@@ -166,6 +175,7 @@ class Preferences(context: Context) {
         const val FILE = "settings"
         const val KEY_NORMALIZE = "normalize_volume"
         const val KEY_AUTOPLAY = "autoplay"
+        const val KEY_ALBUM_VERSIONS = "album_versions"
         const val KEY_APPEARANCE = "appearance"
         const val KEY_PALETTE = "palette"
         const val KEY_BLACK = "pure_black"

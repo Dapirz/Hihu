@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.graphicsLayer
@@ -117,6 +120,7 @@ fun PlayerScreen(
                     Icon(painterResource(Icons.collapse), stringResource(R.string.close_player), Modifier.size(m.iconLg))
                 }
                 Box(Modifier.weight(1f))
+                VersionButton(now, playback)
                 FavoriteButton(now)
                 val lyricsState = stringResource(if (showLyrics) R.string.state_on else R.string.state_off)
                 IconButton(
@@ -160,14 +164,7 @@ fun PlayerScreen(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = if (m.compact) m.gapSm else m.gapXl),
                     )
-                    Text(
-                        now.artist ?: stringResource(R.string.unknown_artist),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = colors.contentMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = m.gapXs),
-                    )
+                    ArtistName(now, colors)
                     SeekBar(now, colors, onSeek = playback::seekTo)
                     Transport(now, playback, colors)
                 }
@@ -340,6 +337,64 @@ private fun SongMenu(now: NowPlaying) {
 }
 
 /** A heart that adds the playing song to the favourites, filled when it is one already. */
+/**
+ * The artists of what plays; a tap opens the artist's page, or with several artists, a menu of
+ * them to pick from.
+ */
+@Composable
+private fun ArtistName(now: NowPlaying, colors: CoverColors) {
+    val m = HihuTheme.metrics
+    val actions = LocalSongActions.current
+    val names = now.song?.let(actions.artists::names).orEmpty()
+    var picking by remember { mutableStateOf(false) }
+    val text: @Composable (Modifier) -> Unit = { modifier ->
+        Text(
+            now.artist ?: stringResource(R.string.unknown_artist),
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.contentMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier.padding(top = m.gapXs),
+        )
+    }
+    if (names.isEmpty()) return text(Modifier)
+    Box {
+        text(
+            Modifier.clickable(onClickLabel = stringResource(R.string.open_artist), role = Role.Button) {
+                when (names.size == 1) {
+                    true -> actions.openArtist(names.first())
+                    false -> picking = true
+                }
+            },
+        )
+        DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
+            names.forEach { name ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    onClick = {
+                        picking = false
+                        actions.openArtist(name)
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** Switches between a song and its music video; shown only when both are known. */
+@Composable
+private fun VersionButton(now: NowPlaying, playback: Playback) {
+    val m = HihuTheme.metrics
+    if (now.versions == null) return
+    val (icon, label) = when (now.isVideo) {
+        true -> Icons.music to R.string.play_album_version
+        false -> Icons.musicVideo to R.string.play_music_video
+    }
+    IconButton(onClick = playback::switchVersion) {
+        Icon(painterResource(icon), stringResource(label), Modifier.size(m.iconMd))
+    }
+}
+
 @Composable
 private fun FavoriteButton(now: NowPlaying) {
     val m = HihuTheme.metrics
