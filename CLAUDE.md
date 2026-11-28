@@ -22,6 +22,8 @@ music/          models and provider interfaces only (Song, Collection, Page, Son
 music/local/    the MediaStore provider
 music/lrclib/   lyrics from lrclib.net (title, artist and length only), parsed with NewPipe's nanojson;
                 asked after YouTube Music, which has timed lyrics for the very recording
+music/spotify/  public Spotify playlists and albums, read from the embed page (first 100 tracks, no account),
+                for PlaylistImport to find their songs on YouTube Music (MusicSearch.matchSong)
 music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggestions, album and artist
                 songs, radio mixes, home/explore/mood feeds and plain lyrics through a small InnerTube client of its
                 own (InnerTube.kt, YouTubeFeed.kt; anonymous, with the visitor id in memory only, except a
@@ -39,7 +41,7 @@ Dependency direction is strict. Do not create a back edge:
 
 ```
 app → views → state → music
-app → music:local, music:youtube, music:lrclib → music
+app → music:local, music:youtube, music:lrclib, music:spotify → music
 state → storage
 views → ui, router
 ```

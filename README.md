@@ -38,6 +38,9 @@ Early. What works today:
 - sort favourites, downloads and the files on your phone by date added, title or artist, and
   playlists by date, name or size; Hihu warns before adding a song a playlist already has
 - hold a song to select several, then queue, add to a playlist, download or hide them at once
+- import a public Spotify playlist or album: Hihu finds each song on YouTube Music and lists
+  the ones it could not find, or that may be another version (Spotify gives the first 100 songs
+  without signing in)
 - search within your library: favourites, playlists, downloads, history and the files on
   your phone, with or without accents
 - a Home tab with rows made from your own history (keep listening, on repeat, forgotten
@@ -71,6 +74,8 @@ sign in this way, so it could limit the account.
 Opening the lyrics of a song asks YouTube Music first. When it has no timed lyrics, and for
 the files on your phone, Hihu sends the song's title, artist and length to lrclib.net, and
 nothing else. Lyrics are only looked up while they are on screen.
+Importing a Spotify playlist opens its public page on open.spotify.com, with no account, and
+looks for each song on YouTube Music.
 
 ## Install
 
@@ -104,6 +109,8 @@ YouTube Music search and streams come from
 [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) (GPL-3.0-or-later).
 
 Synced lyrics come from YouTube Music and [LRCLIB](https://lrclib.net).
+
+Spotify playlists are read from Spotify's public embed page; Hihu has no Spotify account and is not affiliated with Spotify.
 
 Icons are [Material Icons](https://github.com/google/material-design-icons) (Apache 2.0).
 
