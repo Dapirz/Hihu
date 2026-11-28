@@ -43,7 +43,8 @@ Early. What works today:
   without signing in)
 - search within your library: favourites, playlists, downloads, history and the files on
   your phone, with or without accents
-- a Home tab with rows made from your own history (keep listening, on repeat, forgotten
+- a Home tab with rows made from your own history (keep listening, the albums and playlists
+  played lately, on repeat, forgotten
   favourites, similar to the artist you play most, new releases from the artists you play) and YouTube Music's home shelves, no account needed
 - an Explore tab like YouTube Music's: moods and genres, new albums and music videos, and
   what is trending in your country, from YouTube Music's charts

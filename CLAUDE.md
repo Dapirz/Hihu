@@ -12,7 +12,8 @@ app/            composition root: Application, MainActivity, PlaybackService (Ex
                 Normalizer (the player's volume per song, from each song's loudness, kept on the device)
 views/          screens/, shells/ (HihuRoot), chrome/ (mini player), shared/ (Artwork, SongList, Message)
 state/          app-wide state holders and all async work: Playback, Library, Search, Collections, Pager,
-                SearchHistory, PlaylistImport, Home, Explore, Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface),
+                SearchHistory, PlaylistImport, Home, RecentSources (the albums and playlists played from lately), Explore,
+                Moods, Radio, SongLyrics, Downloads (behind the DownloadEngine interface),
                 Account (the signed-in session, encrypted with the Android Keystore in SessionStore),
                 AccountLikes (signed in, a heart is also liked on the account, one way, through a queue),
                 HiddenSongs (songs never to come up again in a radio or on Home), LikedDownloads
