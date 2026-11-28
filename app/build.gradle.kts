@@ -19,8 +19,8 @@ android {
         applicationId = "app.hihu"
         minSdk = 29
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.14.1"
+        versionCode = 23
+        versionName = "1.14.2"
     }
 
     signingConfigs {
