@@ -131,7 +131,7 @@ internal object AlbumVersions {
     private fun readings(video: Song): List<Reading> {
         val uploader = names(video.artist.orEmpty())
         val dash = video.title.indexOf(" - ")
-        val rest = video.title.substring(dash + 3).takeIf { dash >= 0 }?.takeIf { it.isNotBlank() }
+        val rest = video.title.takeIf { dash >= 0 }?.substring(dash + 3)?.takeIf { it.isNotBlank() }
             ?: return listOf(Reading(songTitle(video.title), uploader))
         val lead = video.title.substring(0, dash)
         if (words(lead) in uploader) return listOf(Reading(songTitle(rest), uploader))

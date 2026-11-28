@@ -14,6 +14,8 @@ class ForeignPlaylist(
     val tracks: List<ForeignTrack>,
     val total: Int?,
     val skipped: List<String> = emptyList(),
+    /** True when the service gave only the first part, whether or not it said how much there is. */
+    val truncated: Boolean = false,
 )
 
 /** Reads playlists shared from a service Hihu cannot play from, so their songs can be found elsewhere. */

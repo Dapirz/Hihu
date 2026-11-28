@@ -91,7 +91,8 @@ internal class YouTubeFeed(
         val lines = findArray(json, "timedLyricsData")?.objects()?.mapNotNull { line ->
             val start = line.getObject("cueRange").getString("startTimeMilliseconds", null)?.toLongOrNull() ?: return@mapNotNull null
             LyricLine(start, line.getString("lyricLine", "").trim().takeUnless { it == "♪" }.orEmpty())
-        }?.takeIf { it.isNotEmpty() } ?: return null
+        // Blank lines mark the breaks between verses; an answer of breaks alone has no lyrics.
+        }?.takeIf { lines -> lines.any { it.text.isNotEmpty() } } ?: return null
         return Lyrics(synced = lines, plain = null, source = lyricsSource(findString(json, "sourceMessage")))
     }
 

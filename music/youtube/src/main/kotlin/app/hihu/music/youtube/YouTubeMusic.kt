@@ -56,6 +56,8 @@ import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import app.hihu.music.SessionExpired
+import kotlinx.coroutines.CancellationException
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import org.schabi.newpipe.extractor.Page as NewPipePage
@@ -110,44 +112,82 @@ class YouTubeMusic(
         session = cookies
     }
 
-    override suspend fun profile(): AccountProfile = io { account.profile() }
+    @Volatile
+    private var onRejected: () -> Unit = {}
 
-    override suspend fun savedPlaylists(): Page<Collection> = io { account.library(LIBRARY_PLAYLISTS) }.onIo()
+    override fun watchSession(onRejected: () -> Unit) {
+        this.onRejected = onRejected
+    }
 
-    override suspend fun savedAlbums(): Page<Collection> = io { account.library(LIBRARY_ALBUMS) }.onIo()
+    /** Runs [block] with the account; a refused session is reported before the error goes on. */
+    private inline fun <T> signed(block: () -> T): T = try {
+        block()
+    } catch (e: SessionExpired) {
+        onRejected()
+        throw e
+    }
 
-    override suspend fun followedArtists(): Page<Collection> = io { account.library(LIBRARY_ARTISTS) }.onIo()
+    override suspend fun profile(): AccountProfile = io { signed { account.profile() } }
+
+    override suspend fun savedPlaylists(): Page<Collection> = io { signed { account.library(LIBRARY_PLAYLISTS) } }.onIo()
+
+    override suspend fun savedAlbums(): Page<Collection> = io { signed { account.library(LIBRARY_ALBUMS) } }.onIo()
+
+    override suspend fun followedArtists(): Page<Collection> = io { signed { account.library(LIBRARY_ARTISTS) } }.onIo()
 
     override fun canLike(song: Song): Boolean = song.uri.startsWith("$SCHEME://")
 
     override suspend fun setLiked(song: Song, liked: Boolean) {
         if (!canLike(song)) return
-        io { account.like(song.uri.removePrefix("$SCHEME://"), liked) }
+        io { signed { account.like(song.uri.removePrefix("$SCHEME://"), liked) } }
     }
 
     override suspend fun setDisliked(song: Song, disliked: Boolean) {
         if (!canLike(song)) return
-        io { account.dislike(song.uri.removePrefix("$SCHEME://"), disliked) }
+        io { signed { account.dislike(song.uri.removePrefix("$SCHEME://"), disliked) } }
     }
 
-    override suspend fun home(): Page<Shelf> = io { browsing().home() }.onIo()
+    override suspend fun home(): Page<Shelf> = io { browsing { home() } }.onIo()
 
-    override suspend fun explore(): ExploreFeed = io { browsing().explore() }
+    override suspend fun explore(): ExploreFeed = io { browsing { explore() } }
 
-    override suspend fun mood(mood: Mood): List<Shelf> = io { browsing().mood(mood) }
+    override suspend fun mood(mood: Mood): List<Shelf> = io { browsing { mood(mood) } }
 
     override suspend fun latestReleases(artists: List<String>): List<Release> = artists.flatMap { name ->
         // The artist is the first search result whose name is exactly this one.
-        val artist = runCatching { search(name, SearchKind.Artists).items }.getOrDefault(emptyList())
+        val artist = try {
+            search(name, SearchKind.Artists).items
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList()
+        }
             .firstNotNullOfOrNull { (it as? SearchResult.Group)?.collection?.takeIf { c -> c.title.trim().equals(name.trim(), ignoreCase = true) } }
         val channel = artist?.let(::channelId) ?: return@flatMap emptyList()
-        runCatching { io { browsing().artistReleases(channel) } }.getOrDefault(emptyList())
+        try {
+            io { browsing { artistReleases(channel) } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     /** Signed in, home, explore and moods come as the account sees them; otherwise anonymously. */
     private fun browsing(): YouTubeFeed = when (session != null) {
         true -> account
         false -> feed
+    }
+
+    /**
+     * Runs [block] on [browsing]'s feed. When the account's session is refused it is reported, and
+     * the same feed is read anonymously instead, since all of it is there without an account.
+     */
+    private inline fun <T> browsing(block: YouTubeFeed.() -> T): T = try {
+        browsing().block()
+    } catch (e: SessionExpired) {
+        onRejected()
+        feed.block()
     }
 
     override val scheme: String = SCHEME
@@ -419,7 +459,10 @@ class YouTubeMusic(
         } ?: error("youtube: no playable audio stream for $id")
 
         val stream = ResolvedStream(audio.content, headersFor(audio.content))
-        resolved[key] = Cached(stream, System.currentTimeMillis() + STREAM_TTL_MS)
+        // Expired addresses go as new ones come, so the map holds only the songs of the last hours.
+        val now = System.currentTimeMillis()
+        resolved.values.removeIf { it.expiresAt <= now }
+        resolved[key] = Cached(stream, now + STREAM_TTL_MS)
         return stream
     }
 

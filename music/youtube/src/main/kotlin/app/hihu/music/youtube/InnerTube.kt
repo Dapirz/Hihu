@@ -7,6 +7,7 @@ import com.grack.nanojson.JsonWriter
 import app.hihu.music.SessionExpired
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.security.MessageDigest
 
 /**
@@ -26,7 +27,8 @@ internal class InnerTube(
 
     /** POSTs to `browse` with a [browseId] and [params], or a [continuation] for a next page. */
     fun browse(browseId: String? = null, params: String? = null, continuation: String? = null): JsonObject {
-        val query = continuation?.let { "&ctoken=$it&continuation=$it&type=next" }.orEmpty()
+        val token = continuation?.let { URLEncoder.encode(it, "UTF-8") }
+        val query = token?.let { "&ctoken=$it&continuation=$it&type=next" }.orEmpty()
         return call("browse", query) {
             browseId?.let { value("browseId", it) }
             params?.let { value("params", it) }

@@ -11,6 +11,7 @@ import com.grack.nanojson.JsonParser
 import com.grack.nanojson.JsonParserException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -46,7 +47,10 @@ class SpotifyPlaylists(version: String) : ForeignPlaylists {
             }
         }
         val name = entity.getString("name", null)?.takeIf { it.isNotBlank() } ?: entity.getString("title", "")
-        ForeignPlaylist(name, tracks, total(kind, id), skipped)
+        // A full embed may be the first part only; just then the full page is asked how long it is.
+        val truncated = tracks.size + skipped.size >= EMBED_LIMIT
+        val total = if (truncated && kind == PLAYLIST) total(kind, id) else null
+        ForeignPlaylist(name, tracks, total, skipped, truncated)
     }
 
     /**
@@ -62,10 +66,32 @@ class SpotifyPlaylists(version: String) : ForeignPlaylists {
         throw NotAPlaylist("spotify: the short link leads to no playlist")
     }
 
-    /** How many tracks the full page says the list holds, or null when it does not say. */
-    private fun total(kind: String, id: String): Int? = runCatching {
-        get("$BASE/$kind/$id")?.first?.let { SONG_COUNT.find(it)?.groupValues?.get(1)?.toIntOrNull() }
-    }.getOrNull()
+    /**
+     * How many tracks the full page says the list holds, or null when it does not say. Only the
+     * page's head is read, where the count is, not the half a megabyte after it.
+     */
+    private fun total(kind: String, id: String): Int? {
+        val connection = URL("$BASE/$kind/$id").openConnection() as HttpURLConnection
+        return try {
+            connection.connectTimeout = TIMEOUT_MS
+            connection.readTimeout = TIMEOUT_MS
+            connection.setRequestProperty("User-Agent", userAgent)
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) return null
+            connection.inputStream.bufferedReader().useLines { lines ->
+                val head = StringBuilder()
+                for (line in lines) {
+                    head.append(line)
+                    SONG_COUNT.find(head)?.let { return@useLines it.groupValues[1].toIntOrNull() }
+                    if (line.contains("</head>") || head.length > HEAD_MAX) break
+                }
+                null
+            }
+        } catch (e: IOException) {
+            null
+        } finally {
+            connection.disconnect()
+        }
+    }
 
     /** The JSON a page carries for its own scripts. */
     private fun nextData(page: String): JsonObject {
@@ -100,6 +126,9 @@ class SpotifyPlaylists(version: String) : ForeignPlaylists {
         const val TRACK_URI = "spotify:track:"
         /** How many tracks the embed page lists, at most. */
         const val EMBED_LIMIT = 100
+        const val PLAYLIST = "playlist"
+        /** As far into a page as its head can reasonably go. */
+        const val HEAD_MAX = 200_000
         const val TIMEOUT_MS = 15_000
         const val NBSP = ' '
         /** The kinds of link that hold a list of songs. */

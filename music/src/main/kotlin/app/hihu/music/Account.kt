@@ -24,6 +24,12 @@ interface MusicAccount {
     /** Uses [cookies] for every later call, or signs out when null. */
     fun useSession(cookies: String?)
 
+    /**
+     * Calls [onRejected], on any thread, whenever the provider refuses the session in the middle of
+     * a call, so the app can stop calling itself signed in. Set once, before anything else.
+     */
+    fun watchSession(onRejected: () -> Unit)
+
     /** The signed-in account. Throws [SessionExpired] when the session is no longer accepted. */
     suspend fun profile(): AccountProfile
 

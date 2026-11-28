@@ -50,8 +50,11 @@ class Lrclib(version: String) : LyricsProvider {
         }
         val body = get("/api/search", query) ?: return null
         val hits: JsonArray = JsonParser.array().from(body)
-        return hits.filterIsInstance<JsonObject>()
-            .filter { seconds <= 0 || abs(it.getDouble("duration") - seconds) <= MAX_LENGTH_GAP_S }
+        val entries = hits.filterIsInstance<JsonObject>()
+        // With no length to go by, the first hit is the likeliest, not the shortest.
+        if (seconds <= 0) return entries.firstOrNull()?.let { toLyrics(it, seconds) }
+        return entries
+            .filter { abs(it.getDouble("duration") - seconds) <= MAX_LENGTH_GAP_S }
             .minByOrNull { abs(it.getDouble("duration") - seconds) }
             ?.let { toLyrics(it, seconds) }
     }
