@@ -60,8 +60,9 @@ fun MoodScreen(
         when {
             state.loading -> SkeletonShelves(count = 3)
             state.failed -> Message(stringResource(R.string.collection_failed), stringResource(R.string.retry), open.retry)
+            state.shelves.all { it.items.isEmpty() } -> Message(stringResource(R.string.collection_empty))
             else -> LazyColumn(contentPadding = PaddingValues(top = m.gapSm, bottom = contentPadding.calculateBottomPadding())) {
-                items(state.shelves, key = { it.title }) { shelf ->
+                items(state.shelves.distinctBy { it.title }, key = { it.title }) { shelf ->
                     ShelfView(shelf.title, shelf.items, onSongs, onOpen, menu = { song, _, dismiss -> CommonSongItems(song, dismiss) })
                 }
             }

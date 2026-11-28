@@ -88,6 +88,8 @@ fun Artwork(uri: String?, size: Dp, modifier: Modifier = Modifier, radius: Dp = 
 fun rememberCoverColors(uri: String?): CoverColors {
     val context = LocalContext.current
     val argb by produceState(initialValue = uri?.let(Covers::cachedColor), uri) {
+        // Cleared first: produceState keeps the last cover's colour when the song changes.
+        value = uri?.let(Covers::cachedColor)
         value = uri?.let { Covers.color(context, it) }
     }
     val target = remember(argb) { argb?.let(CoverColors::from) ?: CoverColors.Neutral }
@@ -111,6 +113,14 @@ private object Covers {
     }
     private val colors = LruCache<String, Tint>(MAX_COLORS)
 
+    /**
+     * The bytes of the image URLs fetched lately, so one cover shown at several sizes, and read for
+     * its colour, is downloaded once.
+     */
+    private val fetched = object : LruCache<String, ByteArray>(MAX_FETCHED_BYTES) {
+        override fun sizeOf(key: String, value: ByteArray) = value.size
+    }
+
     private val loading = HashMap<String, CompletableDeferred<Bitmap?>>()
 
     private class Entry(val bitmap: Bitmap?)
@@ -123,7 +133,11 @@ private object Covers {
     suspend fun load(context: Context, uri: String, px: Int): Bitmap? {
         val key = key(uri, px)
         bitmaps.get(key)?.let { return it.bitmap }
-        loading[key]?.let { return it.await() }
+        loading[key]?.let { other ->
+            // Nothing back may mean the row that started it went away; then this one loads it.
+            other.await()?.let { return it }
+            bitmaps.get(key)?.let { return it.bitmap }
+        }
         val task = CompletableDeferred<Bitmap?>()
         loading[key] = task
         try {
@@ -136,7 +150,8 @@ private object Covers {
                     }
                 }
             }
-            if (result.isSuccess || !remote) bitmaps.put(key, Entry(result.getOrNull()))
+            // A file without art is remembered; an image URL that gave nothing is tried again later.
+            if (!remote || result.getOrNull() != null) bitmaps.put(key, Entry(result.getOrNull()))
             task.complete(result.getOrNull())
             return result.getOrNull()
         } finally {
@@ -159,14 +174,7 @@ private object Covers {
 
     /** Fetches an image URL and decodes it no larger than needed for [px]. */
     private fun download(url: String, px: Int): Bitmap? {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        val bytes = try {
-            connection.connectTimeout = TIMEOUT_MS
-            connection.readTimeout = TIMEOUT_MS
-            connection.inputStream.use(::readCapped)
-        } finally {
-            connection.disconnect()
-        }
+        val bytes = fetched.get(url) ?: fetch(url).also { fetched.put(url, it) }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         var sample = 1
@@ -178,6 +186,20 @@ private object Covers {
             inPreferredConfig = Bitmap.Config.HARDWARE
         }
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+    }
+
+    /** The bytes at [url]; an answer other than success is an error, not an image. */
+    private fun fetch(url: String): ByteArray {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        try {
+            connection.connectTimeout = TIMEOUT_MS
+            connection.readTimeout = TIMEOUT_MS
+            val code = connection.responseCode
+            if (code !in HTTP_SUCCESS) throw IOException("cover: HTTP $code")
+            return connection.inputStream.use(::readCapped)
+        } finally {
+            connection.disconnect()
+        }
     }
 
     /** Reads [input] whole, refusing anything larger than a cover could reasonably be. */
@@ -195,4 +217,6 @@ private object Covers {
     private const val TIMEOUT_MS = 15_000
     private const val BUFFER_BYTES = 16 * 1024
     private const val MAX_IMAGE_BYTES = 8 * 1024 * 1024
+    private const val MAX_FETCHED_BYTES = 4 * 1024 * 1024
+    private val HTTP_SUCCESS = 200..299
 }

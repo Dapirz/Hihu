@@ -4,6 +4,7 @@ import app.hihu.music.Song
 import app.hihu.state.LibrarySort
 import java.text.Collator
 import java.text.Normalizer
+import java.util.Locale
 
 /**
  * The items whose [text] contains [query], ignoring case and accents, so "beyonce" finds
@@ -33,6 +34,7 @@ fun List<Song>.sortedFor(sort: LibrarySort): List<Song> {
     }
 }
 
-private fun fold(text: String): String = MARKS.replace(Normalizer.normalize(text, Normalizer.Form.NFD), "").lowercase()
+// The same on every phone: in Turkish, "I".lowercase() would be "ı" and miss "i".
+private fun fold(text: String): String = MARKS.replace(Normalizer.normalize(text, Normalizer.Form.NFD), "").lowercase(Locale.ROOT)
 
 private val MARKS = Regex("\\p{Mn}+")

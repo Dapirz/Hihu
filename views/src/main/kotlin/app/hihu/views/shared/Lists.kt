@@ -133,7 +133,7 @@ fun SongList(
     }
     BackHandler(enabled = choosing) { chosen = emptyList() }
     // Rows are copied so a drag can reorder them on screen before anything is saved.
-    val rows = remember(songs) { songs.mapIndexed { i, song -> ReorderRow(key(i, song), song, i) }.toMutableStateList() }
+    val rows = remember(songs) { songs.mapIndexed { i, song -> ReorderRow(key(i, song), song) }.toMutableStateList() }
     val onMoveNow by rememberUpdatedState(onMove)
     val reorder = remember(list, rows) { ReorderState(list, rows) { from, to -> onMoveNow?.invoke(from, to) } }
     if (onMove != null) AutoScrollWhileDragging(reorder)
@@ -153,7 +153,8 @@ fun SongList(
                             painterResource(Icons.dragHandle),
                             stringResource(R.string.drag_to_reorder),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(m.roundButton).padding(m.gapMd).dragHandle(reorder, row.key),
+                            // The whole 48 dp square starts a drag; the padding only shrinks the drawn icon.
+                            modifier = Modifier.size(m.roundButton).dragHandle(reorder, row.key).padding(m.gapMd),
                         )
                     }
                 }
@@ -430,8 +431,15 @@ internal fun LazyListScope.moreFooter(more: ListMore?) {
     }
 }
 
-private fun compact(count: Long): String =
-    CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT).format(count)
+/** One formatter per language, not one per row drawn. */
+private var compactFormat: Pair<Locale, CompactDecimalFormat>? = null
+
+private fun compact(count: Long): String {
+    val locale = Locale.getDefault()
+    val format = compactFormat?.takeIf { it.first == locale }?.second
+        ?: CompactDecimalFormat.getInstance(locale, CompactDecimalFormat.CompactStyle.SHORT).also { compactFormat = locale to it }
+    return format.format(count)
+}
 
 /** How many rows before the end the next page is asked for. */
 private const val LOAD_AHEAD = 6

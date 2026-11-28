@@ -31,9 +31,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import app.hihu.views.shared.CoverTransition
+import app.hihu.views.shared.SongsSaver
+import app.hihu.views.chrome.ConfirmDialog
 import app.hihu.views.shared.LocalCoverTransition
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -151,8 +156,10 @@ fun HihuRoot(app: AppState) {
     val palette by app.preferences.palette.collectAsStateWithLifecycle()
     val black by app.preferences.black.collectAsStateWithLifecycle()
     // Songs waiting for a playlist: first the picker, then the name dialog for a new one.
-    var picking by remember { mutableStateOf<List<Song>?>(null) }
-    var naming by remember { mutableStateOf<List<Song>?>(null) }
+    var picking by rememberSaveable(stateSaver = SongsSaver) { mutableStateOf<List<Song>?>(null) }
+    var naming by rememberSaveable(stateSaver = SongsSaver) { mutableStateOf<List<Song>?>(null) }
+    // Songs waiting for a yes before they are hidden.
+    var hiding by rememberSaveable(stateSaver = SongsSaver) { mutableStateOf<List<Song>?>(null) }
     // The import dialog, open with the link it starts from; a link shared from another app opens it.
     var importing by rememberSaveable { mutableStateOf<String?>(null) }
     val shared by app.playlistImport.pending.collectAsStateWithLifecycle()
@@ -184,6 +191,7 @@ fun HihuRoot(app: AppState) {
             },
             artists = app.artists,
             openArtist = { name -> openArtist(app, name) },
+            hide = { hiding = it },
         )
     }
     val progress by app.downloads.progress.collectAsStateWithLifecycle()
@@ -216,6 +224,17 @@ fun HihuRoot(app: AppState) {
                         onSaveQueue = { naming = it },
                     )
                     Dialogs(app, picking, naming, onPicking = { picking = it }, onNaming = { naming = it })
+                    hiding?.let { songs ->
+                        ConfirmDialog(
+                            message = pluralStringResource(R.plurals.hide_confirm, songs.size, songs.size),
+                            confirm = R.string.hide_song,
+                            onConfirm = {
+                                songs.forEach(app.hidden::hide)
+                                hiding = null
+                            },
+                            onDismiss = { hiding = null },
+                        )
+                    }
                     importing?.let { link ->
                         ImportDialog(
                             importer = app.playlistImport,
@@ -238,7 +257,12 @@ fun HihuRoot(app: AppState) {
 private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: () -> Unit, onSaveQueue: (List<Song>) -> Unit) {
     val navigator = app.navigator
     val stack by navigator.stack.collectAsStateWithLifecycle()
-    val now by app.playback.state.collectAsStateWithLifecycle()
+    // Without the position, which ticks twice a second: only the player and the mini player's line
+    // read it, each on its own, so the screens under them are not redrawn with every tick.
+    val still = remember(app.playback) { app.playback.state.map { it.copy(positionMs = 0) }.distinctUntilChanged() }
+    val now by still.collectAsStateWithLifecycle(app.playback.state.value.copy(positionMs = 0))
+    // Each screen keeps what it saves, like how far its list is scrolled, while another covers it.
+    val saved = rememberSaveableStateHolder()
     val openSettings = { navigator.push(Destination.Settings) }
     val openCollection = { collection: Collection ->
         app.collections.open(collection)
@@ -274,7 +298,10 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
             when (shown) {
                 Destination.Player -> Scaffold { _ ->
                     CompositionLocalProvider(LocalCoverTransition provides cover) {
-                        PlayerScreen(now, app.playback, app.lyrics, app.preferences, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
+                        val live by app.playback.state.collectAsStateWithLifecycle()
+                        saved.SaveableStateProvider("player") {
+                            PlayerScreen(live, app.playback, app.lyrics, app.preferences, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
+                        }
                     }
                 }
                 Destination.Queue -> Scaffold { _ ->
@@ -305,6 +332,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
                         contentKey = { it.first },
                         label = "screen",
                     ) { (current, _) ->
+                        saved.SaveableStateProvider(current.toString()) {
                         when (current) {
                             Destination.Search -> SearchScreen(
                                 search = app.search,
@@ -381,6 +409,7 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
                             )
                             else -> Unit
                         }
+                        }
                     }
                 }
             }
@@ -396,14 +425,19 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
 private fun openArtist(app: AppState, name: String) {
     val navigator = app.navigator
     val uncover = { while (isOverlay(navigator.stack.value.last()) && navigator.pop()) Unit }
+    // The answer is used only while the user is still where they asked; after going elsewhere it
+    // would pull them away.
+    val asked = navigator.stack.value
     app.artists.find(
         name,
         onFound = { artist ->
+            if (navigator.stack.value != asked) return@find
             uncover()
             app.collections.open(artist)
             navigator.push(Destination.Collection(artist.id))
         },
         onMissing = {
+            if (navigator.stack.value != asked) return@find
             uncover()
             app.search.select(SearchKind.Artists)
             app.search.submit(name)
@@ -458,14 +492,20 @@ private fun Dialogs(
 ) {
     val playlists by app.playlists.all.collectAsStateWithLifecycle()
     // Songs headed for a playlist that already holds some of them, waiting for the user to choose.
-    var doubled by remember { mutableStateOf<Pair<Long, List<Song>>?>(null) }
+    var doubledId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var doubledSongs by rememberSaveable(stateSaver = SongsSaver) { mutableStateOf<List<Song>?>(null) }
+    val doubled = doubledId?.let { id -> doubledSongs?.let { id to it } }
+    val setDoubled = { value: Pair<Long, List<Song>>? ->
+        doubledId = value?.first
+        doubledSongs = value?.second
+    }
     if (picking != null) {
         PlaylistPicker(
             playlists = playlists,
             onPick = { id ->
                 val there = app.playlists.members.value[id].orEmpty()
                 when (picking.any { it.id in there }) {
-                    true -> doubled = id to picking
+                    true -> setDoubled(id to picking)
                     false -> app.playlists.add(id, picking)
                 }
                 onPicking(null)
@@ -482,18 +522,18 @@ private fun Dialogs(
         val fresh = songs.filter { it.id !in there }
         val repeats = songs.size - fresh.size
         AlertDialog(
-            onDismissRequest = { doubled = null },
+            onDismissRequest = { setDoubled(null) },
             text = { Text(pluralStringResource(R.plurals.playlist_already_has, repeats, repeats)) },
             confirmButton = {
                 TextButton(onClick = {
                     app.playlists.add(id, songs)
-                    doubled = null
+                    setDoubled(null)
                 }) { Text(stringResource(R.string.playlist_add_anyway)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     if (fresh.isNotEmpty()) app.playlists.add(id, fresh)
-                    doubled = null
+                    setDoubled(null)
                 }) {
                     Text(
                         when (fresh.isEmpty()) {
@@ -525,8 +565,17 @@ private fun BottomChrome(current: Destination.Tab, now: NowPlaying, navigator: N
     val m = HihuTheme.metrics
     Column {
         if (now.songId != null) {
+            // The live state is read only inside the line's drawing, never here.
+            val live = playback.state.collectAsStateWithLifecycle()
             MiniPlayer(
                 now = now,
+                played = {
+                    val state = live.value
+                    when (state.durationMs > 0) {
+                        true -> (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f)
+                        false -> 0f
+                    }
+                },
                 onOpen = { navigator.push(Destination.Player) },
                 onToggle = playback::toggle,
                 onPrevious = playback::previous,

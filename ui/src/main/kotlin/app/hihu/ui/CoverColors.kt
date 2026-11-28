@@ -48,7 +48,8 @@ data class CoverColors(
  */
 fun dominantColor(bitmap: Bitmap): Int {
     val source = when (bitmap.config == Bitmap.Config.HARDWARE) {
-        true -> bitmap.copy(Bitmap.Config.ARGB_8888, false)
+        // A copy can fail for lack of memory; scaling the hardware bitmap itself still works, slower.
+        true -> bitmap.copy(Bitmap.Config.ARGB_8888, false) ?: bitmap
         false -> bitmap
     }
     val small = Bitmap.createScaledBitmap(source, SAMPLE, SAMPLE, true)

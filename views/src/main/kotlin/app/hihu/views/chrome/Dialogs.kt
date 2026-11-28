@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -41,6 +42,8 @@ fun PlaylistPicker(
     onDismiss: () -> Unit,
 ) {
     val m = HihuTheme.metrics
+    val newLabel = stringResource(R.string.playlist_new)
+    val addLabel = stringResource(R.string.add_to_playlist)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.add_to_playlist)) },
@@ -49,7 +52,10 @@ fun PlaylistPicker(
                 item(key = "new") {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onNew).padding(vertical = m.gapSm),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClickLabel = newLabel, role = Role.Button, onClick = onNew)
+                            .padding(vertical = m.gapSm),
                     ) {
                         Icon(painterResource(Icons.add), contentDescription = null, Modifier.size(m.iconLg))
                         Text(stringResource(R.string.playlist_new), Modifier.padding(start = m.gapMd))
@@ -58,7 +64,10 @@ fun PlaylistPicker(
                 items(playlists, key = { it.id }) { playlist ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().clickable { onPick(playlist.id) }.padding(vertical = m.gapSm),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClickLabel = addLabel, role = Role.Button) { onPick(playlist.id) }
+                            .padding(vertical = m.gapSm),
                     ) {
                         Artwork(playlist.artworkUri, m.iconXl, radius = m.radiusSm)
                         Column(Modifier.padding(start = m.gapMd)) {

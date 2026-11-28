@@ -2,6 +2,7 @@ package app.hihu.views.screens
 
 import android.annotation.SuppressLint
 import android.webkit.CookieManager
+import android.net.Uri
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Column
@@ -62,7 +63,8 @@ fun SignInScreen(account: Account, onDone: () -> Unit, onBack: () -> Unit) {
                         private var finished = false
 
                         override fun onPageFinished(view: WebView, url: String?) {
-                            if (finished || url == null || !url.startsWith(account.sessionUrl)) return
+                            // The host itself, not a prefix: music.youtube.com.example.org is not it.
+                            if (finished || url == null || !sameHost(url, account.sessionUrl)) return
                             val cookies = CookieManager.getInstance().getCookie(account.sessionUrl) ?: return
                             if (!account.isComplete(cookies)) return
                             finished = true
@@ -74,7 +76,21 @@ fun SignInScreen(account: Account, onDone: () -> Unit, onBack: () -> Unit) {
                     loadUrl(account.signInUrl)
                 }
             },
-            onRelease = { it.destroy() },
+            // Left before signing in finished, the web view's cookies would keep a half session.
+            onRelease = {
+                CookieManager.getInstance().run {
+                    removeAllCookies(null)
+                    flush()
+                }
+                it.destroy()
+            },
         )
     }
+}
+
+/** Whether [url] is on the same host as [origin], compared as hosts and not as text. */
+private fun sameHost(url: String, origin: String): Boolean {
+    val page = Uri.parse(url)
+    val home = Uri.parse(origin)
+    return page.scheme == "https" && page.host != null && page.host.equals(home.host, ignoreCase = true)
 }

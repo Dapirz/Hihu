@@ -81,14 +81,15 @@ fun ExploreScreen(
                         }
                     }
                     // YouTube Music's own trending list is left out: the chart below is the same.
-                    items(feed.shelves.filterNot { it.ranked }, key = { "shelf:${it.title}" }) { shelf ->
+                    // Two parts of a feed can share a title, and a title is each row's key.
+                    items(feed.shelves.filterNot { it.ranked }.distinctBy { it.title }, key = { "shelf:${it.title}" }) { shelf ->
                         ShelfView(shelf.title, shelf.items, onSongs, onOpen, menu = { song, _, dismiss -> CommonSongItems(song, dismiss) })
                     }
                 }
                 page.loading -> item(key = "loading") {
                     SkeletonShelves()
                 }
-                page.failed -> item(key = "failed") { Retry(stringResource(R.string.explore_failed), explore::refresh) }
+                page.failed -> item(key = "failed") { Retry(stringResource(R.string.explore_feed_failed), explore::refresh) }
             }
             if (trending.items.isNotEmpty()) {
                 item(key = "chart") { ChartHeader(country, trending.items, playback) }

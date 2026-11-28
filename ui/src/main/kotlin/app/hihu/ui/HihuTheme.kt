@@ -11,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 
 /**
@@ -29,9 +30,18 @@ enum class ThemeColors(internal val seed: Color?) {
 
     /** The colour a picker shows for this family; for the wallpaper, its current primary. */
     @Composable
-    fun swatch(): Color = seed ?: when (wallpaperAvailable) {
-        true -> dynamicLightColorScheme(LocalContext.current).primary
-        false -> Violet.seed!!
+    fun swatch(): Color {
+        seed?.let { return it }
+        if (!wallpaperAvailable) return Violet.seed!!
+        // The primary the app itself uses in the theme showing now, light or dark.
+        val context = LocalContext.current
+        val dark = MaterialTheme.colorScheme.background.luminance() < HALF
+        return remember(context, dark) {
+            when (dark) {
+                true -> dynamicDarkColorScheme(context).primary
+                false -> dynamicLightColorScheme(context).primary
+            }
+        }
     }
 
     companion object {
@@ -100,3 +110,6 @@ private fun ColorScheme.blackened(): ColorScheme = copy(
     surfaceContainerHighest = Color(0xFF222222),
     surfaceBright = Color(0xFF2A2A2A),
 )
+
+/** Below this luminance a background is dark. */
+private const val HALF = 0.5f

@@ -11,6 +11,12 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -95,6 +101,32 @@ fun PlayerScreen(
     val close by rememberUpdatedState(onClose)
     // How far the view is dragged down; it follows the finger at half the distance.
     var pulled by remember { mutableFloatStateOf(0f) }
+    val limit = with(LocalDensity.current) { m.swipeDistance.toPx() }
+    // The lyrics list keeps every drag for itself; what it does not use at its top pulls the view
+    // down here, so it closes from over the lyrics too.
+    val pullThrough = remember(limit) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (pulled <= 0f || available.y >= 0f) return Offset.Zero
+                val used = maxOf(available.y, -pulled)
+                pulled += used
+                return Offset(0f, used)
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || available.y <= 0f) return Offset.Zero
+                pulled += available.y
+                return Offset(0f, available.y)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (pulled <= 0f) return Velocity.Zero
+                if (pulled > limit) close()
+                pulled = 0f
+                return available
+            }
+        }
+    }
 
     CompositionLocalProvider(LocalContentColor provides colors.content) {
         Column(
@@ -102,7 +134,7 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .graphicsLayer { translationY = pulled.coerceAtLeast(0f) * PULL_FOLLOW }
                 .background(background)
-                // A list inside, like the lyrics, takes the drag first while it can scroll.
+                .nestedScroll(pullThrough)
                 .pointerInput(Unit) {
                     val limit = m.swipeDistance.toPx()
                     detectVerticalDragGestures(
@@ -196,8 +228,9 @@ fun PlayerScreen(
 @Composable
 private fun SeekBar(now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit) {
     val m = HihuTheme.metrics
-    // While the thumb is held the slider shows the drag position instead of the live one.
-    var dragging by remember { mutableStateOf<Float?>(null) }
+    // While the thumb is held the slider shows the drag position instead of the live one. A new
+    // song starts with none, so a hold that outlived the old song cannot seek in the new one.
+    var dragging by remember(now.songId) { mutableStateOf<Float?>(null) }
     val position = dragging ?: now.positionMs.toFloat()
     val duration = now.durationMs.toFloat().coerceAtLeast(1f)
     val label = stringResource(R.string.seek)
@@ -206,7 +239,7 @@ private fun SeekBar(now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit
     val sliderColors = SliderDefaults.colors(
         thumbColor = colors.content,
         activeTrackColor = colors.content,
-        inactiveTrackColor = colors.contentMuted.copy(alpha = INACTIVE_TRACK_ALPHA),
+        inactiveTrackColor = colors.contentMuted.copy(alpha = m.seekTrackAlpha),
     )
 
     Column(Modifier.fillMaxWidth().padding(top = if (m.compact) m.gapXs else m.gapXl)) {
@@ -273,7 +306,7 @@ private fun Transport(now: NowPlaying, playback: Playback, colors: CoverColors) 
                 true -> Icons.pause to R.string.pause
                 false -> Icons.play to R.string.play
             }
-            Icon(painterResource(icon), stringResource(label), Modifier.size(m.playButton * PLAY_ICON_SCALE))
+            Icon(painterResource(icon), stringResource(label), Modifier.size(m.playButton * m.playIconShare))
         }
         IconButton(onClick = playback::next, enabled = now.hasNext, colors = toggled) {
             Icon(painterResource(Icons.next), stringResource(R.string.next), Modifier.size(if (m.compact) m.iconLg else m.iconXl))
@@ -446,6 +479,4 @@ private fun FavoriteButton(now: NowPlaying) {
     }
 }
 
-private const val INACTIVE_TRACK_ALPHA = 0.35f
-private const val PLAY_ICON_SCALE = 0.7f
 private const val PULL_FOLLOW = 0.5f

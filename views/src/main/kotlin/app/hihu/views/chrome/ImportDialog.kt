@@ -14,6 +14,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,6 +43,8 @@ fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Un
     val m = HihuTheme.metrics
     val state by importer.state.collectAsStateWithLifecycle()
     var link by rememberSaveable { mutableStateOf(initial) }
+    // A link shared while the dialog is already open fills the field too.
+    LaunchedEffect(initial) { if (initial.isNotEmpty()) link = initial }
     val close = {
         importer.reset()
         onDismiss()
@@ -100,7 +103,10 @@ fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Un
                     Text(pluralStringResource(R.plurals.import_done, current.count, current.count, current.name))
                     current.cut?.let { (read, all) ->
                         Text(
-                            stringResource(R.string.import_cut, read, all),
+                            when (all) {
+                                null -> stringResource(R.string.import_cut_unknown, read)
+                                else -> stringResource(R.string.import_cut, read, all)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = m.gapSm),

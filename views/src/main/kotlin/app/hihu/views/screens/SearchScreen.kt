@@ -28,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,6 +86,8 @@ fun SearchScreen(
     val results by search.results.collectAsStateWithLifecycle()
     val recent by search.history.recent.collectAsStateWithLifecycle()
     var text by rememberSaveable { mutableStateOf(query.text) }
+    // A search started from elsewhere, like an artist not found, shows its words in the field.
+    LaunchedEffect(query.text) { text = query.text }
     var focused by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -142,7 +145,7 @@ fun SearchScreen(
                 !results.loaded -> Message(stringResource(R.string.search_idle))
                 results.items.isEmpty() -> Message(stringResource(R.string.search_empty, query.text))
                 query.kind == SearchKind.Songs || query.kind == SearchKind.Videos -> {
-                    val songs = results.items.mapNotNull { (it as? SearchResult.Track)?.song }
+                    val songs = remember(results.items) { results.items.mapNotNull { (it as? SearchResult.Track)?.song } }
                     SongList(
                         songs = songs,
                         playingId = now.songId,
@@ -159,7 +162,7 @@ fun SearchScreen(
                     )
                 }
                 else -> CollectionList(
-                    collections = results.items.mapNotNull { (it as? SearchResult.Group)?.collection },
+                    collections = remember(results.items) { results.items.mapNotNull { (it as? SearchResult.Group)?.collection } },
                     padding = listPadding,
                     onOpen = onOpen,
                     more = results.more(search::loadMore),

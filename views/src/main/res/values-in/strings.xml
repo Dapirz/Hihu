@@ -47,6 +47,7 @@
     <string name="trending_in">Lagi tren di %1$s</string>
     <string name="trending_source">YouTube Charts, diperbarui tiap hari</string>
     <string name="explore_failed">Gagal memuat chart. Periksa koneksi.</string>
+    <string name="explore_feed_failed">Gagal memuat mood dan rilisan baru. Periksa koneksi.</string>
     <string name="tab_library">Pustaka</string>
     <string name="search_hint">Lagu, artis</string>
     <string name="search_idle">Cari lagu atau artis di YouTube Music.</string>
@@ -54,6 +55,7 @@
     <string name="import_hint">Tempel link playlist YouTube, YouTube Music, atau Spotify yang publik, atau link album Spotify. Lagunya disalin ke playlist baru di sini. Lagu dari Spotify dicari di YouTube Music.</string>
     <string name="import_matching">Mencari lagu di YouTube Music… %1$d dari %2$d</string>
     <string name="import_cut">Tanpa login, Spotify hanya memberi %1$d lagu pertama dari %2$d.</string>
+    <string name="import_cut_unknown">Tanpa login, Spotify hanya memberi %1$d lagu pertama; playlist ini mungkin punya lebih banyak.</string>
     <string name="import_song_link">Itu link satu lagu, bukan playlist.</string>
     <string name="import_unreadable">Hihu tidak bisa membaca link Spotify ini lagi. Coba lagi setelah Hihu diperbarui.</string>
     <plurals name="import_unsure">
@@ -134,6 +136,7 @@
     <string name="add_to_playlist">Tambah ke playlist</string>
     <string name="remove_from_playlist">Hapus dari playlist</string>
     <string name="remove_from_queue">Hapus dari antrean</string>
+    <string name="queue_subtitle_radio">%1$s · %2$s</string>
     <string name="queue_removed">Dihapus dari antrean</string>
     <string name="undo">Urungkan</string>
     <string name="loading">Memuat</string>
@@ -214,6 +217,9 @@
     <string name="resume_on_connect">Lanjut saat earphone tersambung</string>
     <string name="resume_on_connect_detail">Lagu yang terjeda karena earphone dicabut atau terputus akan lanjut saat earphone tersambung lagi dalam 30 menit. Tidak jika kamu menjedanya sendiri atau app lain sedang memutar suara. Hanya selama Hihu masih berjalan di latar belakang.</string>
     <string name="hide_song">Jangan putar lagi</string>
+    <plurals name="hide_confirm">
+        <item quantity="other">Jangan putar %1$d lagu ini lagi? Lagunya keluar dari antrean dan tidak muncul lagi di radio maupun Beranda. Kalau login, YouTube Music juga diberi tahu.</item>
+    </plurals>
     <string name="hidden_songs">Lagu yang disembunyikan</string>
     <string name="hidden_songs_show">Lihat daftarnya</string>
     <string name="hidden_songs_empty">Belum ada lagu yang disembunyikan.</string>

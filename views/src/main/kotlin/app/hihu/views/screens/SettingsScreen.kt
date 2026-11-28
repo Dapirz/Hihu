@@ -1,5 +1,6 @@
 package app.hihu.views.screens
 
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,7 @@ import app.hihu.state.AccountStatus
 import app.hihu.views.shared.Artwork
 import app.hihu.state.Appearance
 import app.hihu.state.Downloads
+import app.hihu.state.DownloadStatus
 import app.hihu.state.HiddenSongs
 import app.hihu.state.BugReport
 import android.content.Intent
@@ -125,6 +127,8 @@ fun SettingsScreen(
                 .wrapContentWidth()
                 .widthIn(max = m.contentMaxWidth)
                 .verticalScroll(rememberScrollState())
+                // The last card clears a three-button navigation bar.
+                .navigationBarsPadding()
                 .padding(bottom = m.gapXl),
         ) {
             SettingsCard(R.string.section_account) {
@@ -380,10 +384,13 @@ private fun HiddenSection(hidden: HiddenSongs) {
 private fun DownloadsSection(downloads: Downloads) {
     val m = HihuTheme.metrics
     val context = LocalContext.current
-    val songs by downloads.songs.collectAsStateWithLifecycle()
+    val saved by downloads.songs.collectAsStateWithLifecycle()
+    val progress by downloads.progress.collectAsStateWithLifecycle()
     val bytes by downloads.bytes.collectAsStateWithLifecycle()
     var confirming by remember { mutableStateOf(false) }
-    LaunchedEffect(songs.size) { downloads.measure() }
+    // Only songs downloaded in full count; one still on its way or failed has no file yet.
+    val songs = saved.filter { progress[it.id]?.status == DownloadStatus.Done }
+    LaunchedEffect(songs.map { it.id }) { downloads.measure() }
 
     SubHeading(R.string.settings_downloads)
     Text(

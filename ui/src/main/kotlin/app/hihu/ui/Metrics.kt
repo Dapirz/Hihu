@@ -62,6 +62,12 @@ data class Metrics(
     val moodWidth: Dp = 168.dp,
     val moodHeight: Dp = 52.dp,
     val moodStripe: Dp = 6.dp,
+    /** How much of the screen's width a column of a song shelf takes; the next one peeks in. */
+    val shelfColumnShare: Float = 0.86f,
+    /** The play icon's size as a share of its round button. */
+    val playIconShare: Float = 0.7f,
+    /** How strongly the unplayed part of the player's seek bar shows. */
+    val seekTrackAlpha: Float = 0.35f,
     /** A colour circle in the theme picker. */
     val swatch: Dp = 44.dp,
     val swatchRing: Dp = 3.dp,

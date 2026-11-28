@@ -53,6 +53,8 @@ class SongActions(
     val artists: Artists,
     /** Opens the page of the artist with this name, from wherever the app is. */
     val openArtist: (String) -> Unit,
+    /** Asks before hiding songs, which also takes them out of the queue and, signed in, dislikes them. */
+    val hide: (List<Song>) -> Unit,
 )
 
 val LocalSongActions = staticCompositionLocalOf<SongActions> { error("SongActions is not provided") }
@@ -162,7 +164,7 @@ fun SelectionBar(songs: List<Song>, done: () -> Unit) {
                 done()
             }, enabled = downloadable.isNotEmpty()) { Icon(painterResource(Icons.download), stringResource(R.string.download), Modifier.size(m.iconMd)) }
             IconButton(onClick = {
-                songs.forEach(actions.hidden::hide)
+                actions.hide(songs)
                 done()
             }) { Icon(painterResource(Icons.hide), stringResource(R.string.hide_song), Modifier.size(m.iconMd)) }
         }
@@ -174,8 +176,8 @@ fun SelectionBar(songs: List<Song>, done: () -> Unit) {
 fun HideItem(song: Song, dismiss: () -> Unit) {
     val actions = LocalSongActions.current
     MenuItem(R.string.hide_song) {
-        actions.hidden.hide(song)
         dismiss()
+        actions.hide(listOf(song))
     }
 }
 

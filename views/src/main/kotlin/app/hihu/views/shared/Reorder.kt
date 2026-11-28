@@ -18,8 +18,8 @@ import androidx.compose.ui.platform.LocalDensity
 import app.hihu.ui.HihuTheme
 import kotlinx.coroutines.delay
 
-/** One row of a reorderable list: a key that stays with the song, and where it started. */
-data class ReorderRow<T>(val key: Any, val item: T, val start: Int)
+/** One row of a reorderable list: a key that stays with the song, and the song. */
+data class ReorderRow<T>(val key: Any, val item: T)
 
 /**
  * Drag to reorder for a lazy list. Rows swap in [rows] while a row is dragged, so nothing is

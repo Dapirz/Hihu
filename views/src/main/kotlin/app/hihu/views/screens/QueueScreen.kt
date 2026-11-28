@@ -54,6 +54,16 @@ fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onSave: (List
     val queue by playback.queue.collectAsStateWithLifecycle()
     val seed by radio.seed.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    // A song can be queued twice; its key counts which time this is, so it stays with the same
+    // row when rows move. Counted in one pass.
+    val keys = remember(queue) {
+        val seen = HashMap<String, Int>()
+        queue.map { song ->
+            val time = seen[song.id] ?: 0
+            seen[song.id] = time + 1
+            "${song.id}#$time"
+        }
+    }
     val scope = rememberCoroutineScope()
     val removedText = stringResource(R.string.queue_removed)
     val undoText = stringResource(R.string.undo)
@@ -79,7 +89,7 @@ fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onSave: (List
                     Text(stringResource(R.string.queue), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     val count = pluralStringResource(R.plurals.library_count, queue.size, queue.size)
                     Text(
-                        seed?.let { stringResource(R.string.radio_from, it) + " · " + count } ?: count,
+                        seed?.let { stringResource(R.string.queue_subtitle_radio, stringResource(R.string.radio_from, it), count) } ?: count,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -95,7 +105,8 @@ fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onSave: (List
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.queue_remove_played)) },
-                            enabled = now.index > 0,
+                            // While shuffling, the songs above are not the ones that played.
+                        enabled = now.index > 0 && !now.shuffle,
                             onClick = {
                                 menu = false
                                 playback.removePlayed()
@@ -122,11 +133,11 @@ fun QueueScreen(playback: Playback, radio: Radio, now: NowPlaying, onSave: (List
                     modifier = Modifier.navigationBarsPadding(),
                     // A song can be queued twice; its key counts which time this is, so it stays with
                     // the same row when rows move.
-                    key = { index, song -> "${song.id}#${queue.subList(0, index).count { it.id == song.id }}" },
+                    key = { index, _ -> keys[index] },
                     isPlaying = { index, _ -> index == now.index },
                     onMove = playback::move,
                     dividers = false,
-                    dimmed = { index, _ -> index < now.index },
+                    dimmed = { index, _ -> !now.shuffle && index < now.index },
                     initialIndex = now.index,
                     onRemove = removeWithUndo,
                     // The song playing now is taken out from its menu only, so a stray swipe never stops it.

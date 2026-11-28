@@ -27,6 +27,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -110,8 +112,11 @@ fun LyricsPane(
 private fun Synced(lines: List<LyricLine>, source: String, offsetMs: Long, scale: Float, now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit) {
     val m = HihuTheme.metrics
     val position = smoothPosition(now)
-    // -1 before the first line starts: nothing is lit yet, and the list waits at the top.
-    val current = lines.indexOfLast { it.timeMs + offsetMs <= position }
+    // -1 before the first line starts: nothing is lit yet, and the list waits at the top. Read
+    // through derivedStateOf, so the ten position updates a second redraw nothing until the line changes.
+    val current by remember(lines, offsetMs) {
+        derivedStateOf { lines.indexOfLast { it.timeMs + offsetMs <= position.value } }
+    }
     val list = rememberLazyListState()
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -203,15 +208,15 @@ private fun Timing(offsetMs: Long, colors: CoverColors, onShift: (Long) -> Unit,
  * on time.
  */
 @Composable
-private fun smoothPosition(now: NowPlaying): Long {
-    var position by remember { mutableLongStateOf(now.positionMs) }
+private fun smoothPosition(now: NowPlaying): State<Long> {
+    val position = remember { mutableLongStateOf(now.positionMs) }
     LaunchedEffect(now.positionMs, now.isPlaying) {
         val base = now.positionMs
         val start = SystemClock.elapsedRealtime()
-        position = base
+        position.longValue = base
         while (now.isPlaying) {
             delay(FRAME_MS)
-            position = base + (SystemClock.elapsedRealtime() - start)
+            position.longValue = base + (SystemClock.elapsedRealtime() - start)
         }
     }
     return position

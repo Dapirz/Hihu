@@ -51,6 +51,8 @@ fun ShelfView(
     menu: SongMenu? = null,
 ) {
     val m = HihuTheme.metrics
+    // A feed can send a shelf with nothing usable in it; it shows nothing rather than an empty grid.
+    if (items.isEmpty()) return
     val songs = items.mapNotNull { (it as? SearchResult.Track)?.song }
     Column(Modifier.fillMaxWidth().padding(bottom = m.gapLg)) {
         ShelfTitle(title)
@@ -80,7 +82,7 @@ private fun SongGrid(songs: List<Song>, onSong: (Song, List<Song>) -> Unit, menu
     val m = HihuTheme.metrics
     val rows = songs.size.coerceAtMost(GRID_ROWS)
     // Each column is most of the screen wide, so the next column peeks in to show it scrolls.
-    val column = LocalConfiguration.current.screenWidthDp.dp * COLUMN_FRACTION
+    val column = LocalConfiguration.current.screenWidthDp.dp * m.shelfColumnShare
     LazyHorizontalGrid(
         rows = GridCells.Fixed(rows),
         contentPadding = PaddingValues(horizontal = m.gapSm),
@@ -187,4 +189,3 @@ fun MoodGrid(moods: List<Mood>, onOpen: (Mood) -> Unit) {
 
 private const val GRID_ROWS = 4
 private const val MOOD_ROWS = 2
-private const val COLUMN_FRACTION = 0.86f

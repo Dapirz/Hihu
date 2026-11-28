@@ -9,12 +9,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,6 +56,8 @@ fun MiniPlayer(
     onToggle: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    /** The share of the song played, read only where the line is drawn, so a tick redraws just it. */
+    played: () -> Float,
     modifier: Modifier = Modifier,
 ) {
     val m = HihuTheme.metrics
@@ -130,10 +134,6 @@ fun MiniPlayer(
                 }
             }
             // Inset by the corner radius and lifted off the edge, so the line sits inside the pill.
-            val played = when (now.durationMs > 0) {
-                true -> (now.positionMs.toFloat() / now.durationMs).coerceIn(0f, 1f)
-                false -> 0f
-            }
             Box(
                 Modifier
                     .align(Alignment.BottomStart)
@@ -142,7 +142,15 @@ fun MiniPlayer(
                     .height(m.miniProgress)
                     .background(colors.contentMuted.copy(alpha = TRACK_ALPHA)),
             ) {
-                Box(Modifier.fillMaxWidth(played).fillMaxHeight().background(colors.content))
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = played()
+                            transformOrigin = TransformOrigin(0f, 0.5f)
+                        }
+                        .background(colors.content),
+                )
             }
         }
     }
