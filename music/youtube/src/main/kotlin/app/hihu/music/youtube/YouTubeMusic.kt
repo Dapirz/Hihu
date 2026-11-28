@@ -158,10 +158,10 @@ class YouTubeMusic(
     }
 
     /** YouTube Music's own lyrics, plain text without times; only for songs from YouTube. */
+
     override suspend fun lyrics(song: Song): Lyrics? {
         if (!song.uri.startsWith("$SCHEME://")) return null
-        val text = io { feed.lyrics(song.uri.removePrefix("$SCHEME://")) } ?: return null
-        return Lyrics(synced = null, plain = text, source = LYRICS_SOURCE)
+        return io { feed.lyrics(song.uri.removePrefix("$SCHEME://")) }
     }
 
     override suspend fun search(query: String, kind: SearchKind): Page<SearchResult> = io {
@@ -413,7 +413,6 @@ class YouTubeMusic(
         const val LIBRARY_PLAYLISTS = "FEmusic_liked_playlists"
         const val LIBRARY_ALBUMS = "FEmusic_liked_albums"
         const val LIBRARY_ARTISTS = "FEmusic_library_corpus_artists"
-        const val LYRICS_SOURCE = "YouTube Music"
         const val WATCH_URL = "https://www.youtube.com/watch?v="
         const val YOUTUBE_ORIGIN = "https://www.youtube.com"
         const val FALLBACK_COUNTRY = "US"

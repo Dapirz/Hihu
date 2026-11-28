@@ -134,8 +134,9 @@ class HihuApplication : Application() {
             history = history,
             playback = playback,
             radio = Radio(youtube, playback, preferences.autoplay, hidden.ids, scope),
-            // LRCLIB first, for its synced lines; YouTube Music has plain lyrics for many songs LRCLIB lacks.
-            lyrics = SongLyrics(FirstLyrics(listOf(Lrclib(versionName()), youtube)), playback, store, scope),
+            // YouTube Music first: its timed lines follow the very recording that plays. LRCLIB
+            // covers what it lacks, and the files on the phone, which YouTube Music does not know.
+            lyrics = SongLyrics(FirstLyrics(listOf(youtube, Lrclib(versionName()))), playback, store, scope),
             explore = Explore(youtube, youtube, scope),
             home = Home(youtube, youtube, history, favorites, hidden.ids, scope),
             moods = Moods(youtube, scope),

@@ -23,15 +23,20 @@ interface LyricsProvider {
 class FirstLyrics(private val providers: List<LyricsProvider>) : LyricsProvider {
     override suspend fun lyrics(song: Song): Lyrics? {
         var failure: Exception? = null
+        // Plain lyrics wait in case a later provider has timed ones, which are better.
+        var plain: Lyrics? = null
         for (provider in providers) {
             try {
-                provider.lyrics(song)?.let { return it }
+                val found = provider.lyrics(song) ?: continue
+                if (found.synced != null) return found
+                plain = plain ?: found
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 failure = failure ?: e
             }
         }
+        plain?.let { return it }
         failure?.let { throw it }
         return null
     }

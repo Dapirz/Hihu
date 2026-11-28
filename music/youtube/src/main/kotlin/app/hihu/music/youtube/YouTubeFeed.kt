@@ -4,6 +4,8 @@ import app.hihu.music.AccountProfile
 import app.hihu.music.Collection
 import app.hihu.music.CollectionKind
 import app.hihu.music.ExploreFeed
+import app.hihu.music.LyricLine
+import app.hihu.music.Lyrics
 import app.hihu.music.Mood
 import app.hihu.music.Page
 import app.hihu.music.Release
@@ -65,20 +67,41 @@ internal class YouTubeFeed(
         sections(api.browse(browseId = MOOD_PAGE, params = mood.ref)).contents.mapNotNull(::shelf)
 
     /**
-     * The plain lyrics YouTube Music shows for [videoId], or null when it has none. Its watch page
-     * names a lyrics tab only for songs with lyrics; that tab is a browse page with the text.
+     * The lyrics YouTube Music has for [videoId], timed to this very recording when it has them,
+     * or else plain; null when it has none. Its watch page names a lyrics tab only for songs with
+     * lyrics. Asked as the Android app, that tab answers with timed lines; the web gets plain text.
      */
-    fun lyrics(videoId: String): String? {
+    fun lyrics(videoId: String): Lyrics? {
         val tabs = api.next(videoId).getObject("contents").getObject("singleColumnMusicWatchNextResultsRenderer")
             .getObject("tabbedRenderer").getObject("watchNextTabbedResultsRenderer").getArray("tabs").objects()
         val browseId = tabs.map { it.getObject("tabRenderer").getObject("endpoint").getObject("browseEndpoint") }
             .firstOrNull { it.getString("browseId", "").startsWith(LYRICS_PREFIX) }
             ?.getString("browseId") ?: return null
+        runCatching { timedLyrics(api.browseAsApp(browseId)) }.getOrNull()?.let { return it }
         val shelf = api.browse(browseId = browseId).getObject("contents").getObject("sectionListRenderer")
             .getArray("contents").objects().firstNotNullOfOrNull { it.getObject("musicDescriptionShelfRenderer").takeIf { s -> s.isNotEmpty() } }
             ?: return null
-        return shelf.getObject("description").getArray("runs").objects()
-            .joinToString("") { it.getString("text", "") }.takeIf { it.isNotBlank() }
+        val text = shelf.getObject("description").getArray("runs").objects()
+            .joinToString("") { it.getString("text", "") }.takeIf { it.isNotBlank() } ?: return null
+        return Lyrics(synced = null, plain = text, source = lyricsSource(shelf.getObject("footer").runsText()))
+    }
+
+    /** The timed lines in the app's answer for a lyrics page, or null when it sent none. */
+    private fun timedLyrics(json: JsonObject): Lyrics? {
+        val lines = findArray(json, "timedLyricsData")?.objects()?.mapNotNull { line ->
+            val start = line.getObject("cueRange").getString("startTimeMilliseconds", null)?.toLongOrNull() ?: return@mapNotNull null
+            LyricLine(start, line.getString("lyricLine", "").trim().takeUnless { it == "♪" }.orEmpty())
+        }?.takeIf { it.isNotEmpty() } ?: return null
+        return Lyrics(synced = lines, plain = null, source = lyricsSource(findString(json, "sourceMessage")))
+    }
+
+    /** "YouTube Music", with the catalogue it names, as in "Source: Musixmatch", when it names one. */
+    private fun lyricsSource(message: String?): String {
+        val from = message?.substringAfter(':', "")?.trim()?.takeIf { it.isNotEmpty() }
+        return when (from) {
+            null -> LYRICS_SOURCE
+            else -> "$LYRICS_SOURCE · $from"
+        }
     }
 
     /**
@@ -336,6 +359,7 @@ internal class YouTubeFeed(
         const val SONG_TYPE = "MUSIC_VIDEO_TYPE_ATV"
         val VIDEO_TYPES = setOf("MUSIC_VIDEO_TYPE_OMV", "MUSIC_VIDEO_TYPE_UGC")
         const val LYRICS_PREFIX = "MPLY"
+        const val LYRICS_SOURCE = "YouTube Music"
         const val CHARTS = "FEmusic_charts"
         const val ROW = "musicResponsiveListItemRenderer"
         const val CARD = "musicTwoRowItemRenderer"
@@ -367,6 +391,13 @@ private fun findAll(json: Any?, key: String): List<JsonObject> = when (json) {
     is JsonObject -> (json[key] as? JsonObject)?.let(::listOf) ?: json.values.flatMap { findAll(it, key) }
     is JsonArray -> json.flatMap { findAll(it, key) }
     else -> emptyList()
+}
+
+/** The first array under [key] anywhere inside [json], depth first. */
+private fun findArray(json: Any?, key: String): JsonArray? = when (json) {
+    is JsonObject -> (json[key] as? JsonArray) ?: json.values.firstNotNullOfOrNull { findArray(it, key) }
+    is JsonArray -> json.firstNotNullOfOrNull { findArray(it, key) }
+    else -> null
 }
 
 /** The first object under [key] anywhere inside [json], depth first. */

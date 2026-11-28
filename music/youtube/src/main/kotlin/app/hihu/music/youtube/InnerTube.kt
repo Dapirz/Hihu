@@ -33,6 +33,13 @@ internal class InnerTube(
         }
     }
 
+    /**
+     * Browse page [browseId] as YouTube Music's Android app asks for it, always without an
+     * account. A song's lyrics page answers the app with timed lines that the web player is not
+     * given.
+     */
+    fun browseAsApp(browseId: String): JsonObject = call("browse", "", Client.App) { value("browseId", browseId) }
+
     /** The next page of a list whose token came in a `continuationCommand`, sent in the body. */
     fun browseContinuation(token: String): JsonObject = call("browse", "") { value("continuation", token) }
 
@@ -68,23 +75,34 @@ internal class InnerTube(
         }
     }
 
-    private fun call(endpoint: String, query: String, fields: JsonStringWriter.() -> Unit): JsonObject {
+    /** Who a request says it comes from: YouTube Music's web player, or its Android app. */
+    private enum class Client(val clientName: String, val id: String, val version: String, val userAgent: String) {
+        Web(CLIENT_NAME, CLIENT_ID, CLIENT_VERSION, HttpDownloader.USER_AGENT),
+        App(APP_CLIENT_NAME, APP_CLIENT_ID, APP_CLIENT_VERSION, APP_USER_AGENT),
+    }
+
+    private fun call(
+        endpoint: String,
+        query: String,
+        client: Client = Client.Web,
+        fields: JsonStringWriter.() -> Unit,
+    ): JsonObject {
         val body = JsonWriter.string().`object`()
             .`object`("context").`object`("client")
-            .value("clientName", CLIENT_NAME)
-            .value("clientVersion", CLIENT_VERSION)
+            .value("clientName", client.clientName)
+            .value("clientVersion", client.version)
             .value("hl", language)
             .value("gl", country)
             .apply { visitor?.let { value("visitorData", it) } }
             .end().end()
             .apply(fields)
             .end().done()
-        val json = JsonParser.`object`().from(post("$BASE$endpoint?prettyPrint=false$query", body))
+        val json = JsonParser.`object`().from(post("$BASE$endpoint?prettyPrint=false$query", body, client))
         json.getObject("responseContext").getString("visitorData", null)?.let { visitor = it }
         return json
     }
 
-    private fun post(url: String, body: String): String {
+    private fun post(url: String, body: String, client: Client): String {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
@@ -92,13 +110,16 @@ internal class InnerTube(
             connection.connectTimeout = TIMEOUT_MS
             connection.readTimeout = TIMEOUT_MS
             connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("Origin", ORIGIN)
-            connection.setRequestProperty("Referer", "$ORIGIN/")
-            connection.setRequestProperty("User-Agent", HttpDownloader.USER_AGENT)
-            connection.setRequestProperty("X-YouTube-Client-Name", CLIENT_ID)
-            connection.setRequestProperty("X-YouTube-Client-Version", CLIENT_VERSION)
+            connection.setRequestProperty("User-Agent", client.userAgent)
+            connection.setRequestProperty("X-YouTube-Client-Name", client.id)
+            connection.setRequestProperty("X-YouTube-Client-Version", client.version)
             visitor?.let { connection.setRequestProperty("X-Goog-Visitor-Id", it) }
-            cookies()?.let { jar ->
+            // Only the web player speaks for the page and the account; the app's requests carry neither.
+            if (client == Client.Web) {
+                connection.setRequestProperty("Origin", ORIGIN)
+                connection.setRequestProperty("Referer", "$ORIGIN/")
+            }
+            cookies()?.takeIf { client == Client.Web }?.let { jar ->
                 connection.setRequestProperty("Cookie", jar)
                 connection.setRequestProperty("X-Goog-AuthUser", "0")
                 connection.setRequestProperty("X-Origin", ORIGIN)
@@ -137,5 +158,9 @@ internal class InnerTube(
         // YouTube accepts older web client versions for a long time; bump it if pages turn empty.
         private const val CLIENT_VERSION = "1.20251110.01.00"
         private const val TIMEOUT_MS = 15_000
+        private const val APP_CLIENT_NAME = "ANDROID_MUSIC"
+        private const val APP_CLIENT_ID = "21"
+        private const val APP_CLIENT_VERSION = "7.27.52"
+        private const val APP_USER_AGENT = "com.google.android.apps.youtube.music/$APP_CLIENT_VERSION (Linux; U; Android 14) gzip"
     }
 }
