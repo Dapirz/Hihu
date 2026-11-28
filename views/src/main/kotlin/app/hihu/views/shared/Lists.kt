@@ -46,6 +46,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -205,6 +207,7 @@ fun SongList(
 private fun SwipeToRemove(enabled: Boolean, onRemove: () -> Unit, content: @Composable () -> Unit) {
     val m = HihuTheme.metrics
     val state = rememberSwipeToDismissBoxState()
+    val settle = rememberCoroutineScope()
     val label = stringResource(R.string.remove_from_queue)
     SwipeToDismissBox(
         state = state,
@@ -224,7 +227,12 @@ private fun SwipeToRemove(enabled: Boolean, onRemove: () -> Unit, content: @Comp
                 Icon(painterResource(Icons.delete), null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(m.iconMd))
             }
         },
-        onDismiss = { onRemove() },
+        onDismiss = {
+            onRemove()
+            // Settled again at once: a row that comes back under the same key, as an undo brings
+            // it, must not arrive swiped away and be taken out a second time.
+            settle.launch { state.snapTo(SwipeToDismissBoxValue.Settled) }
+        },
     ) {
         Box(Modifier.background(MaterialTheme.colorScheme.surface)) { content() }
     }
