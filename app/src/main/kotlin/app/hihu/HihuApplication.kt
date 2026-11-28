@@ -9,6 +9,7 @@ import android.net.NetworkRequest
 import app.hihu.state.LikedDownloads
 import app.hihu.music.spotify.SpotifyPlaylists
 import app.hihu.state.BugReport
+import app.hihu.state.RecentSources
 import android.telephony.TelephonyManager
 import android.util.Log
 import java.util.Locale
@@ -140,6 +141,7 @@ class HihuApplication : Application() {
             lyrics = SongLyrics(FirstLyrics(listOf(youtube, Lrclib(versionName()))), playback, store, scope),
             explore = Explore(youtube, youtube, scope),
             home = Home(youtube, youtube, history, favorites, hidden.ids, scope),
+            recentSources = RecentSources(store, playlists, scope),
             moods = Moods(youtube, scope),
             playlistImport = PlaylistImport(youtube, listOf(SpotifyPlaylists(versionName())), youtube, playlists, scope),
             downloads = downloads,

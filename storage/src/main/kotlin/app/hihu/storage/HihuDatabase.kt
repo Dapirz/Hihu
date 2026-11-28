@@ -28,7 +28,7 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
 
     private companion object {
         const val NAME = "hihu.db"
-        const val VERSION = 6
+        const val VERSION = 7
 
         val SCHEMA = listOf(
             """
@@ -129,6 +129,21 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
                 CREATE TABLE hidden_songs (
                     song_id TEXT PRIMARY KEY REFERENCES songs(id),
                     hidden_at INTEGER NOT NULL
+                )
+                """,
+            ),
+            7 to listOf(
+                // Albums and playlists played from, for Home's "Played lately". A YouTube one is
+                // kept whole; a local playlist only by its id, so a rename or delete shows at once.
+                """
+                CREATE TABLE recent_sources (
+                    key TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    ref TEXT NOT NULL,
+                    title TEXT,
+                    subtitle TEXT,
+                    artwork TEXT,
+                    played_at INTEGER NOT NULL
                 )
                 """,
             ),
