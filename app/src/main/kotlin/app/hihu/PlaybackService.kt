@@ -237,7 +237,14 @@ class PlaybackService : MediaSessionService() {
             app.scope.launch {
                 when (val saved = app.state.playback.resumable()) {
                     null -> future.setException(UnsupportedOperationException("playback: nothing to resume"))
-                    else -> future.set(saved)
+                    else -> {
+                        // The items carry no modes; the saved shuffle and repeat go on the player itself.
+                        app.state.playback.resumableModes()?.let { (shuffle, repeat) ->
+                            mediaSession.player.shuffleModeEnabled = shuffle
+                            mediaSession.player.repeatMode = repeat
+                        }
+                        future.set(saved)
+                    }
                 }
             }
             return future

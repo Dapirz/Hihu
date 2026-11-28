@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.pow
 
 /**
@@ -27,11 +28,19 @@ class Normalizer(
     private val source: SongLoudness,
     private val enabled: StateFlow<Boolean>,
     private val scope: CoroutineScope,
+    /** Whether [uri]'s figure must stay even when the list is trimmed: a downloaded song plays offline. */
+    private val keep: (uri: String) -> Boolean = { false },
 ) {
     private val known = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
     // Songs being fetched, or that came back without a figure, in this run; not asked again.
     private val asked = Collections.synchronizedSet(HashSet<String>())
+
+    // Songs the provider has no figure for, which play at full volume this run.
+    private val noFigure = Collections.synchronizedSet(HashSet<String>())
+
+    // When a song's figure last failed to come; asked again only after a while.
+    private val failedAt = ConcurrentHashMap<String, Long>()
 
     private var player: Player? = null
     private var watching: Job? = null
@@ -57,19 +66,36 @@ class Normalizer(
 
     /** Asks for [uri]'s loudness ahead of time, as for a song being downloaded, unless it is known. */
     fun prefetch(uri: String) {
-        if (known.contains(uri) || !asked.add(uri)) return
+        if (known.contains(uri)) return
+        val failed = failedAt[uri]
+        if (failed != null && System.currentTimeMillis() - failed < RETRY_MS) return
+        if (!asked.add(uri)) return
         scope.launch {
-            val db = withContext(Dispatchers.IO) {
-                runCatching { source.loudnessDb(uri) }
-                    .onFailure { Log.w(TAG, "volume: cannot read a song's loudness", it) }
-                    .getOrNull()
-            }
-            if (db != null) {
-                known.edit().putFloat(uri, db.toFloat()).apply()
-                asked.remove(uri)
+            val result = withContext(Dispatchers.IO) { runCatching { source.loudnessDb(uri) } }
+            result.onFailure { Log.w(TAG, "volume: cannot read a song's loudness", it) }
+            val db = result.getOrNull()
+            when {
+                db != null -> {
+                    remember(uri, db.toFloat())
+                    asked.remove(uri)
+                }
+                // No figure: full volume for it, not the volume of the song before.
+                result.isSuccess -> noFigure += uri
+                else -> {
+                    failedAt[uri] = System.currentTimeMillis()
+                    asked.remove(uri)
+                }
             }
             if (uriOf(player?.currentMediaItem) == uri) refresh()
         }
+    }
+
+    /** Keeps [db] for [uri]; past [MAX_KEPT] figures, those of songs not downloaded are let go. */
+    private fun remember(uri: String, db: Float) {
+        val edit = known.edit().putFloat(uri, db)
+        val all = known.all.keys
+        if (all.size >= MAX_KEPT) all.filterNot(keep).forEach(edit::remove)
+        edit.apply()
     }
 
     /** Sets the volume for the song playing and asks ahead for it and the next one. */
@@ -91,6 +117,7 @@ class Normalizer(
      */
     private fun gain(uri: String?): Float {
         if (!enabled.value || uri == null || !source.knows(uri)) return FULL
+        if (uri in noFigure || failedAt.containsKey(uri)) return FULL
         if (!known.contains(uri)) return player?.volume ?: FULL
         val db = known.getFloat(uri, 0f)
         if (db <= 0f) return FULL
@@ -108,5 +135,7 @@ class Normalizer(
         const val MIN_GAIN = 0.1f
         // Amplitude changes tenfold every 20 dB.
         const val DB_PER_TENFOLD = 20.0
+        const val RETRY_MS = 10 * 60_000L
+        const val MAX_KEPT = 5000
     }
 }

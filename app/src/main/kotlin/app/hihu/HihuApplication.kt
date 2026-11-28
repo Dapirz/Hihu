@@ -3,6 +3,8 @@ package app.hihu
 import android.app.Application
 import android.content.ComponentName
 import android.net.ConnectivityManager
+import android.app.Activity
+import android.os.Bundle
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
@@ -94,9 +96,12 @@ class HihuApplication : Application() {
             likes.toggled(song, liked)
             likedDownloads.toggled(song, liked)
         }
-        normalizer = Normalizer(this, youtube, preferences.normalize, scope)
+        lateinit var downloads: Downloads
+        normalizer = Normalizer(this, youtube, preferences.normalize, scope) { uri ->
+            downloads.songs.value.any { it.uri == uri }
+        }
         offline = Offline(this, listOf(youtube), onDownload = normalizer::prefetch)
-        val downloads = Downloads(offline, store, scope)
+        downloads = Downloads(offline, store, scope)
         val playback = Playback(
             context = this,
             service = ComponentName(this, PlaybackService::class.java),
@@ -105,7 +110,7 @@ class HihuApplication : Application() {
             onSongStarted = history::record,
             versions = youtube,
             albumVersions = preferences.albumVersions,
-            downloaded = { song -> downloads.songs.value.any { it.id == song.id } },
+            downloaded = downloads::isDone,
         )
         val playlists = Playlists(store, scope)
         // A hidden song leaves the queue now, and signed in it is disliked on the account too.
@@ -121,10 +126,11 @@ class HihuApplication : Application() {
             mobileToo = preferences.downloadLikesMobile,
             preferences = preferences,
             downloads = downloads,
-            favorites = { favorites.songs.value },
+            favorites = favorites::all,
             unmetered = { !connectivity.isActiveNetworkMetered },
         )
         watchUnmetered(connectivity, likedDownloads)
+        watchVisible()
         state = AppState(
             navigator = Navigator(Destination.Home),
             library = Library(MediaStoreLibrary(this), scope),
@@ -166,6 +172,26 @@ class HihuApplication : Application() {
                 state.explore.refresh()
             }
         }
+    }
+
+    /** Tells [offline] whether a screen of Hihu is showing, by counting the activities started. */
+    private fun watchVisible() {
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            private var started = 0
+            override fun onActivityStarted(activity: Activity) {
+                started++
+                offline.setVisible(true)
+            }
+            override fun onActivityStopped(activity: Activity) {
+                started = (started - 1).coerceAtLeast(0)
+                if (started == 0) offline.setVisible(false)
+            }
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+            override fun onActivityResumed(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        })
     }
 
     /** Tells [likedDownloads] whenever a network that costs nothing per byte, like Wi-Fi, connects. */

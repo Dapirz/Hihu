@@ -30,7 +30,8 @@ class MainActivity : ComponentActivity() {
     /** A playlist link shared from another app, such as YouTube, opens the import dialog. */
     private fun receive(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND) return
-        intent.getStringExtra(Intent.EXTRA_TEXT)?.let(app.playlistImport::offer)
+        // Some apps share styled text, which getStringExtra would read as nothing.
+        intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.let(app.playlistImport::offer)
     }
 
     override fun onStart() {

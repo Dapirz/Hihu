@@ -116,6 +116,18 @@ class Offline(
     private val main = Handler(Looper.getMainLooper())
     private val tick = Runnable { refresh() }
 
+    private val _loaded = MutableStateFlow(false)
+    override val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
+
+    /** Whether one of Hihu's screens is showing; only then may the download service be started. */
+    private var visible = false
+
+    /** Downloads asked for while no screen showed, like a heart's from a Wi-Fi callback; sent once one does. */
+    private val waiting = ArrayList<DownloadRequest>()
+
+    /** Downloads removed while no screen showed; removed once one does. */
+    private val removals = ArrayList<String>()
+
     override fun supports(song: Song): Boolean = Uri.parse(song.uri).scheme in schemes
 
     override fun start(song: Song) {
@@ -123,13 +135,51 @@ class Offline(
             // The player looks songs up by their URI, so the download is stored under it too.
             .setCustomCacheKey(song.uri)
             .build()
-        DownloadService.sendAddDownload(context, HihuDownloadService::class.java, request, false)
         onDownload(song.uri)
+        main.post {
+            when (visible) {
+                true -> send(request)
+                false -> waiting += request
+            }
+        }
     }
 
     override fun remove(songId: String) {
-        DownloadService.sendRemoveDownload(context, HihuDownloadService::class.java, songId, false)
+        main.post {
+            waiting.removeAll { it.id == songId }
+            when (visible) {
+                true -> DownloadService.sendRemoveDownload(context, HihuDownloadService::class.java, songId, false)
+                false -> removals += songId
+            }
+        }
     }
+
+    /**
+     * Told on the main thread when a screen of Hihu starts or the last one stops. Android lets an
+     * app start its download service only while it is in front, so what was asked for in the
+     * background is sent now, and downloads left waiting from before go on.
+     */
+    fun setVisible(now: Boolean) {
+        val became = now && !visible
+        visible = now
+        if (!became) return
+        removals.forEach { DownloadService.sendRemoveDownload(context, HihuDownloadService::class.java, it, false) }
+        removals.clear()
+        waiting.forEach(::send)
+        waiting.clear()
+        resumeUnfinished()
+    }
+
+    /** The download manager starts paused until its service runs; unfinished downloads go on here. */
+    private fun resumeUnfinished() {
+        if (!visible || !_loaded.value) return
+        if (known.values.any { it.status == DownloadStatus.Queued || it.status == DownloadStatus.Downloading }) {
+            DownloadService.sendResumeDownloads(context, HihuDownloadService::class.java, false)
+        }
+    }
+
+    private fun send(request: DownloadRequest) =
+        DownloadService.sendAddDownload(context, HihuDownloadService::class.java, request, false)
 
     override fun bytesUsed(): Long = cache.cacheSpace
 
@@ -148,15 +198,18 @@ class Offline(
             while (cursor.moveToNext()) cursor.download.toProgress()?.let { known[cursor.download.request.id] = it }
         }
         refresh()
+        _loaded.value = true
+        resumeUnfinished()
     }
 
-    /** Publishes every download's state into [progress], and keeps doing so while any is running. */
+    /** Publishes every download's state into [progress], and keeps doing so while one is downloading. */
     private fun refresh() {
         val all = HashMap(known)
         manager.currentDownloads.forEach { download -> download.toProgress()?.let { all[download.request.id] = it } }
         _progress.value = all
         main.removeCallbacks(tick)
-        if (all.values.any { it.status == DownloadStatus.Downloading || it.status == DownloadStatus.Queued }) {
+        // A queued download waits for the network or a free slot, and its start comes as a change.
+        if (all.values.any { it.status == DownloadStatus.Downloading }) {
             main.postDelayed(tick, TICK_MS)
         }
     }
