@@ -19,8 +19,8 @@ android {
         applicationId = "app.hihu"
         minSdk = 29
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.12.0"
+        versionCode = 20
+        versionName = "1.13.0"
     }
 
     signingConfigs {
@@ -67,6 +67,7 @@ dependencies {
     implementation(project(":music:local"))
     implementation(project(":music:youtube"))
     implementation(project(":music:lrclib"))
+    implementation(project(":music:spotify"))
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.media3.datasource)
