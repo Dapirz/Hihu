@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -29,9 +32,10 @@ import app.hihu.ui.HihuTheme
 import app.hihu.views.R
 
 /**
- * Copies a YouTube playlist into a new Hihu playlist from its link: a field for the link, then
- * progress while every page is read, then the result. [initial] fills the field, for a link
- * shared from another app.
+ * Copies a YouTube or Spotify playlist into a new Hihu playlist from its link: a field for the
+ * link, then progress while every page is read and, for Spotify, while each song is found, then
+ * the result with the songs that may be another version or were not found. [initial] fills the
+ * field, for a link shared from another app.
  */
 @Composable
 fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Unit, onDismiss: () -> Unit) {
@@ -42,7 +46,7 @@ fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Un
         importer.reset()
         onDismiss()
     }
-    val reading = state is ImportState.Reading
+    val reading = state is ImportState.Reading || state is ImportState.Matching
 
     AlertDialog(
         // A tap outside must not throw away a long read halfway.
@@ -79,9 +83,32 @@ fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Un
                         false -> LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = m.gapMd))
                     }
                 }
-                is ImportState.Done -> Text(
-                    pluralStringResource(R.plurals.import_done, current.count, current.count, current.name),
-                )
+                is ImportState.Matching -> Column {
+                    Text(stringResource(R.string.import_matching, current.done, current.total))
+                    Text(
+                        current.title,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = m.gapXs),
+                    )
+                    LinearProgressIndicator(
+                        progress = { (current.done.toFloat() / current.total.coerceAtLeast(1)).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().padding(top = m.gapMd),
+                    )
+                }
+                is ImportState.Done -> Column(Modifier.heightIn(max = m.dialogListMax).verticalScroll(rememberScrollState())) {
+                    Text(pluralStringResource(R.plurals.import_done, current.count, current.count, current.name))
+                    current.cut?.let { (read, all) ->
+                        Text(
+                            stringResource(R.string.import_cut, read, all),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = m.gapSm),
+                        )
+                    }
+                    SongNames(pluralStringResource(R.plurals.import_unsure, current.unsure.size, current.unsure.size), current.unsure)
+                    SongNames(pluralStringResource(R.plurals.import_missing, current.missing.size, current.missing.size), current.missing)
+                }
                 else -> Column {
                     Text(
                         stringResource(R.string.import_hint),
@@ -104,6 +131,8 @@ fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Un
                                     ImportFailure.Unavailable -> R.string.import_unavailable
                                     ImportFailure.Empty -> R.string.import_empty
                                     ImportFailure.Network -> R.string.import_network
+                                    ImportFailure.NotASongList -> R.string.import_song_link
+                                    ImportFailure.Unreadable -> R.string.import_unreadable
                                 },
                             ),
                             style = MaterialTheme.typography.bodySmall,
@@ -116,7 +145,7 @@ fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Un
         },
         confirmButton = {
             when (val current = state) {
-                is ImportState.Reading -> Unit
+                is ImportState.Reading, is ImportState.Matching -> Unit
                 is ImportState.Done -> TextButton(onClick = {
                     importer.reset()
                     onOpen(current.id)
@@ -131,7 +160,7 @@ fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Un
                 Text(
                     stringResource(
                         when (state) {
-                            is ImportState.Reading -> R.string.import_stop
+                            is ImportState.Reading, is ImportState.Matching -> R.string.import_stop
                             is ImportState.Done -> R.string.import_close
                             else -> R.string.cancel
                         },
@@ -140,4 +169,23 @@ fun ImportDialog(importer: PlaylistImport, initial: String, onOpen: (Long) -> Un
             }
         },
     )
+}
+
+/** A heading such as "3 not found" that opens to the songs it counts; nothing when there are none. */
+@Composable
+private fun SongNames(heading: String, names: List<String>) {
+    if (names.isEmpty()) return
+    val m = HihuTheme.metrics
+    var open by rememberSaveable { mutableStateOf(false) }
+    TextButton(onClick = { open = !open }, modifier = Modifier.padding(top = m.gapXs)) { Text(heading) }
+    if (open) {
+        names.forEach { name ->
+            Text(
+                name,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = m.gapMd, bottom = m.gapXs),
+            )
+        }
+    }
 }

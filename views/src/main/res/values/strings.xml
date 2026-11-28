@@ -52,8 +52,20 @@
     <string name="tab_library">Library</string>
     <string name="search_hint">Songs, artists</string>
     <string name="search_idle">Search YouTube Music for a song or an artist.</string>
-    <string name="import_title">Import from YouTube</string>
-    <string name="import_hint">Paste a link to a public or unlisted YouTube or YouTube Music playlist. Its songs are copied into a new playlist here.</string>
+    <string name="import_title">Import from YouTube or Spotify</string>
+    <string name="import_hint">Paste a link to a public or unlisted YouTube or YouTube Music playlist, or a public Spotify playlist or album. Its songs are copied into a new playlist here; Spotify\'s are found on YouTube Music.</string>
+    <string name="import_matching">Finding songs on YouTube Music… %1$d of %2$d</string>
+    <string name="import_cut">Without signing in, Spotify gives only the first %1$d of %2$d songs.</string>
+    <string name="import_song_link">That\'s a link to one song, not a playlist.</string>
+    <string name="import_unreadable">Hihu can\'t read this Spotify link any more. Try again once Hihu is updated.</string>
+    <plurals name="import_unsure">
+        <item quantity="one">%d may be another version</item>
+        <item quantity="other">%d may be another version</item>
+    </plurals>
+    <plurals name="import_missing">
+        <item quantity="one">%d not found</item>
+        <item quantity="other">%d not found</item>
+    </plurals>
     <string name="import_link">Playlist link</string>
     <string name="import_start">Import</string>
     <string name="import_stop">Stop</string>
@@ -68,9 +80,9 @@
         <item quantity="one">Copied %1$d song into “%2$s”.</item>
         <item quantity="other">Copied %1$d songs into “%2$s”.</item>
     </plurals>
-    <string name="import_not_playlist">That isn\'t a YouTube playlist link.</string>
-    <string name="import_unavailable">This playlist is private or no longer exists. Private playlists need signing in.</string>
-    <string name="import_empty">This playlist has no songs Hihu can play.</string>
+    <string name="import_not_playlist">That isn\'t a YouTube or Spotify playlist link.</string>
+    <string name="import_unavailable">This playlist is private or no longer exists. A private YouTube playlist needs signing in.</string>
+    <string name="import_empty">None of this playlist\'s songs can be played or found by Hihu.</string>
     <string name="import_network">Couldn\'t read the playlist. Check your connection and try again.</string>
     <string name="search_recent">Recent searches</string>
     <string name="search_recent_clear">Clear all</string>
