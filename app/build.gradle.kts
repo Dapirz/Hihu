@@ -19,14 +19,15 @@ android {
         applicationId = "app.hihu"
         minSdk = 29
         targetSdk = 36
-        versionCode = 21
-        versionName = "1.14.0"
+        versionCode = 22
+        versionName = "1.14.1"
     }
 
     signingConfigs {
         if (signing != null) {
             create("release") {
-                storeFile = file(signing.getProperty("storeFile"))
+                // Next to keystore.properties, like the file itself, when the path is relative.
+                storeFile = rootProject.file(signing.getProperty("storeFile"))
                 storePassword = signing.getProperty("storePassword")
                 keyAlias = signing.getProperty("keyAlias")
                 keyPassword = signing.getProperty("keyPassword")
