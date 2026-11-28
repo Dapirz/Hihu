@@ -143,14 +143,20 @@ class Radio(
         job = scope.launch { load(fetch) }
     }
 
-    /** Fetches a page and adds the songs that are not queued yet to the end of the queue. */
+    /**
+     * Fetches a page and adds the songs that are not queued yet to the end of the queue. A song
+     * counts as queued by its title and artist too, so a music video's song version does not
+     * follow the video, which plays that very song already.
+     */
     private suspend fun load(fetch: suspend () -> Page<Song>) {
         try {
             val page = fetch()
             if (!active()) return
             next = page.next
-            val queued = playback.queue.value.mapTo(HashSet(), Song::id)
-            val fresh = page.items.filter { it.id !in hidden.value && queued.add(it.id) }
+            val current = playback.queue.value
+            val queued = current.mapTo(HashSet(), Song::id)
+            val heard = current.mapTo(HashSet(), ::sameSong)
+            val fresh = page.items.filter { it.id !in hidden.value && queued.add(it.id) && heard.add(sameSong(it)) }
             if (fresh.isNotEmpty()) playback.enqueue(fresh, resume = true)
         } catch (e: CancellationException) {
             throw e
@@ -161,9 +167,27 @@ class Radio(
 
     private fun active() = _seed.value != null && playback.generation == generation
 
+    /**
+     * What makes two songs the same one to a listener: the title, without the marks of a video
+     * like "(Official Video)", and the first artist, not the id. A video often credits one artist
+     * where its song credits them all.
+     */
+    private fun sameSong(song: Song): String {
+        val title = song.title.replace(BRACKETED) { match ->
+            if (VIDEO_MARK.containsMatchIn(match.groupValues[1])) "" else match.value
+        }
+        // Letters and digits only, so "J. Balvin" and "J Balvin" are one artist.
+        val artist = song.artist?.substringBefore(", ").orEmpty()
+        return title.lowercase().replace(NOT_WORD, "") + "\u0000" + artist.lowercase().replace(NOT_WORD, "")
+    }
+
     private companion object {
         const val TAG = "Hihu"
         /** Fetch more once this few songs are left after the one playing. */
         const val REFILL_AT = 3
+        val NOT_WORD = Regex("[^\\p{L}\\p{N}]+")
+        val BRACKETED = Regex("""\s*[(\[]([^)\]]*)[)\]]""")
+        /** Parts of a title that do not change the song: a video's marks, and its guests, in any order. */
+        val VIDEO_MARK = Regex("official|video|lyric|visuali[sz]er|audio|^feat\\b|^ft\\b|^with ", RegexOption.IGNORE_CASE)
     }
 }
