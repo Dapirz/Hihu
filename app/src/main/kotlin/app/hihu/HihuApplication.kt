@@ -7,6 +7,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import app.hihu.state.LikedDownloads
+import app.hihu.music.spotify.SpotifyPlaylists
 import app.hihu.state.BugReport
 import android.telephony.TelephonyManager
 import android.util.Log
@@ -140,7 +141,7 @@ class HihuApplication : Application() {
             explore = Explore(youtube, youtube, scope),
             home = Home(youtube, youtube, history, favorites, hidden.ids, scope),
             moods = Moods(youtube, scope),
-            playlistImport = PlaylistImport(youtube, playlists, scope),
+            playlistImport = PlaylistImport(youtube, listOf(SpotifyPlaylists(versionName())), youtube, playlists, scope),
             downloads = downloads,
             hidden = hidden,
             bugReport = BugReport(versionName(), scope),
