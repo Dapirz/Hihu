@@ -24,6 +24,13 @@ interface MusicSearch {
 
     /** Completions for a partly typed [query], best first. */
     suspend fun suggestions(query: String): List<String>
+
+    /**
+     * This catalogue's song for [track] from another service, or null when none has its title
+     * and first artist. A song whose length also fits is a sure match; one that does not, like a
+     * radio edit for the album version, is returned as unsure.
+     */
+    suspend fun matchSong(track: ForeignTrack): SongMatch?
 }
 
 /**
