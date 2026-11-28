@@ -20,7 +20,8 @@ state/          app-wide state holders and all async work: Playback, Library, Se
 music/          models and provider interfaces only (Song, Collection, Page, SongLibrary, MusicSearch,
                 MusicBrowse, MusicAccount, StreamResolver), pure Kotlin
 music/local/    the MediaStore provider
-music/lrclib/   lyrics from lrclib.net (title, artist and length only), parsed with NewPipe's nanojson
+music/lrclib/   lyrics from lrclib.net (title, artist and length only), parsed with NewPipe's nanojson;
+                asked after YouTube Music, which has timed lyrics for the very recording
 music/youtube/  YouTube Music through NewPipeExtractor: search by kind, suggestions, album and artist
                 songs, radio mixes, home/explore/mood feeds and plain lyrics through a small InnerTube client of its
                 own (InnerTube.kt, YouTubeFeed.kt; anonymous, with the visitor id in memory only, except a
