@@ -79,9 +79,12 @@ class Pager<T>(
                 next = page.next
                 _state.update { current ->
                     val known = current.items.mapTo(HashSet(), key)
+                    val added = page.items.filter { known.add(key(it)) }
+                    // A page with nothing new would be asked for again at once; the list ends there.
+                    if (added.isEmpty()) next = null
                     current.copy(
-                        items = current.items + page.items.filter { known.add(key(it)) },
-                        hasMore = page.next != null,
+                        items = current.items + added,
+                        hasMore = next != null,
                         loadingMore = false,
                     )
                 }

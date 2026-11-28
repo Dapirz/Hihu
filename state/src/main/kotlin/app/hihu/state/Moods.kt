@@ -6,6 +6,7 @@ import app.hihu.music.MusicFeed
 import app.hihu.music.Shelf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,9 +33,12 @@ class Moods(private val feed: MusicFeed, private val scope: CoroutineScope) {
         known[mood.ref] = mood
         return open.getOrPut(mood.ref) {
             val state = MutableStateFlow(MoodState())
+            var job: Job? = null
             fun load() {
+                // A retry replaces the request still on its way, so a late failure cannot undo it.
+                job?.cancel()
                 state.value = MoodState()
-                scope.launch {
+                job = scope.launch {
                     try {
                         state.value = MoodState(feed.mood(mood), loading = false)
                     } catch (e: CancellationException) {

@@ -31,9 +31,19 @@ class Favorites(
 
     init {
         scope.launch {
-            reload()
-            loaded.complete(Unit)
+            // Completed even when the first read fails, so a heart never waits for ever.
+            try {
+                reload()
+            } finally {
+                loaded.complete(Unit)
+            }
         }
+    }
+
+    /** The hearted songs, after the first read is done. */
+    suspend fun all(): List<Song> {
+        loaded.await()
+        return _songs.value
     }
 
     /** Hearts [song], or takes the heart away if it already has one. */

@@ -14,7 +14,8 @@ class LikedDownloads(
     private val mobileToo: StateFlow<Boolean>,
     private val preferences: Preferences,
     private val downloads: Downloads,
-    private val favorites: () -> List<Song>,
+    /** The hearted songs, once they have been read; waits for that at start-up. */
+    private val favorites: suspend () -> List<Song>,
     /** Whether the network in use costs nothing per byte, read when a heart is given. */
     private val unmetered: () -> Boolean,
 ) {
@@ -29,12 +30,13 @@ class LikedDownloads(
     }
 
     /** Called when an unmetered network connects: downloads the hearts that were waiting for one. */
-    fun onUnmetered() {
+    suspend fun onUnmetered() {
         val waiting = preferences.pendingDownloads()
         if (waiting.isEmpty()) return
-        preferences.setPendingDownloads(emptySet())
-        if (!enabled.value) return
+        if (!enabled.value) return preferences.setPendingDownloads(emptySet())
         val songs = favorites().filter { it.id in waiting }
+        // Only what was found leaves the list; a heart taken away since is taken out by [toggled].
+        preferences.setPendingDownloads(preferences.pendingDownloads() - songs.mapTo(HashSet(), Song::id))
         if (songs.isNotEmpty()) downloads.download(songs)
     }
 }

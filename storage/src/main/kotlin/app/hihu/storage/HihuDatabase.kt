@@ -2,6 +2,7 @@ package app.hihu.storage
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteException
 import android.database.sqlite.SQLiteOpenHelper
 
 /**
@@ -23,8 +24,22 @@ class HihuDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        for (version in oldVersion + 1..newVersion) MIGRATIONS[version]?.forEach(db::execSQL)
+        // A version with no migration fails here, at once, rather than leave the schema behind.
+        for (version in oldVersion + 1..newVersion) MIGRATIONS.getValue(version).forEach { statement ->
+            try {
+                db.execSQL(statement)
+            } catch (e: SQLiteException) {
+                // Already there after an older Hihu ran on this database (see onDowngrade).
+                if (e.message?.contains("already exists") != true) throw e
+            }
+        }
     }
+
+    /**
+     * An older Hihu installed over a newer one keeps the newer tables: every change is an addition,
+     * which the older code does not read. Without this, Android refuses to open the database.
+     */
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
 
     private companion object {
         const val NAME = "hihu.db"

@@ -84,6 +84,8 @@ class Search(
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "search: cannot fetch suggestions", e)
+                // The old ones were for other text.
+                _query.value = _query.value.copy(suggestions = emptyList())
             }
         }
     }

@@ -66,7 +66,7 @@ sealed interface ImportState {
         val count: Int,
         val unsure: List<String> = emptyList(),
         val missing: List<String> = emptyList(),
-        val cut: Pair<Int, Int>? = null,
+        val cut: Pair<Int, Int?>? = null,
     ) : ImportState
 
     data class Failed(val reason: ImportFailure) : ImportState
@@ -202,7 +202,12 @@ class PlaylistImport(
         missing += list.skipped
         if (songs.isEmpty()) return ImportState.Failed(ImportFailure.Empty)
         val read = total + list.skipped.size
-        val cut = list.total?.takeIf { it > read }?.let { read to it }
+        val all = list.total
+        val cut = when {
+            all != null && all > read -> read to all
+            list.truncated && all == null -> read to null
+            else -> null
+        }
         val id = playlists.createNow(title, songs.values.toList())
         return ImportState.Done(id, title, songs.size, unsure, missing, cut)
     }
@@ -231,4 +236,4 @@ class PlaylistImport(
 private val LINK = Regex("""https?://\S+|spotify:(?:playlist|album|track):[A-Za-z0-9]+""")
 
 /** The first link in [text], which a share wraps in a sentence; Spotify's own `spotify:` links count too. */
-internal fun linkIn(text: String): String? = LINK.find(text)?.value
+internal fun linkIn(text: String): String? = LINK.find(text)?.value?.trimEnd('.', ',', ')', ']', '!', '?', ';', ':', '"', '\'')

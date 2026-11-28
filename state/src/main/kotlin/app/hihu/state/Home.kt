@@ -61,9 +61,10 @@ class Home(
         combine(history.recent, history.mostPlayed, favorites.songs, similar, hidden) { recent, most, hearted, like, gone ->
             val lately = recent.take(LATELY).mapTo(HashSet(), Song::id)
             listOfNotNull(
-                recent.take(ROW_SIZE).takeIf { it.isNotEmpty() }?.let(PersonalRow::KeepListening),
+                // A hidden song stays in the history, so every row leaves it out here.
+                recent.filter { it.id !in gone }.take(ROW_SIZE).takeIf { it.isNotEmpty() }?.let(PersonalRow::KeepListening),
                 most.filter { it.id !in gone }.takeIf { it.isNotEmpty() }?.let(PersonalRow::MostPlayed),
-                hearted.filter { it.id !in lately }.take(ROW_SIZE).takeIf { it.isNotEmpty() }?.let(PersonalRow::Forgotten),
+                hearted.filter { it.id !in lately && it.id !in gone }.take(ROW_SIZE).takeIf { it.isNotEmpty() }?.let(PersonalRow::Forgotten),
                 like?.let { row -> row.copy(songs = row.songs.filter { it.id !in gone }) }?.takeIf { it.songs.isNotEmpty() },
             )
         }.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -84,7 +85,8 @@ class Home(
     /** Loads the shelves and the similar-artist row, unless they already have. */
     fun open() {
         val now = pager.state.value
-        if (!now.loaded && !now.loading) pager.load { feed.home() }
+        // A first page that failed, or came empty, is asked for again rather than left so.
+        if (!now.loading && (!now.loaded || now.failed || now.items.isEmpty())) pager.load { feed.home() }
         loadSimilar()
         loadReleases()
     }
@@ -128,7 +130,7 @@ class Home(
         val recent = recentSongs.value.take(LATELY).filter(radio::hasRadio)
         val artist = recent.mapNotNull { it.artist }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: return
         val seed = recent.first { it.artist == artist }
-        if (seed.id == similarSeed && similar.value != null) return
+        if (seed.id == similarSeed && (similar.value != null || similarJob?.isActive == true)) return
         similarSeed = seed.id
         similarJob?.cancel()
         similarJob = scope.launch {

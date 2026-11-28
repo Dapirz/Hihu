@@ -4,7 +4,9 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import app.hihu.music.MusicAccount
+import app.hihu.music.SessionExpired
 import app.hihu.music.Song
+import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -29,6 +31,9 @@ class AccountLikes(
     private var retry: Job? = null
     private var again = false
     private var waitMs = FIRST_RETRY_MS
+
+    /** How many times the account refused each queued song, by id. */
+    private val refused = HashMap<String, Int>()
 
     init {
         scope.launch {
@@ -101,12 +106,29 @@ class AccountLikes(
                         db.rawQuery(
                             "SELECT $SONG_COLUMNS, q.liked FROM like_queue q JOIN songs s ON s.id = q.song_id ORDER BY q.queued_at LIMIT 1",
                             null,
-                        ).all { it.readSong() to (it.getInt(SONG_COLUMN_COUNT) == 1) }.firstOrNull()
+                        ).all { it.readSong() to (it.getInt(it.getColumnIndexOrThrow("liked")) == 1) }.firstOrNull()
                     } ?: break
                     if (!first) delay(PAUSE_MS)
                     first = false
                     val (song, liked) = next
-                    source.setLiked(song, liked)
+                    try {
+                        source.setLiked(song, liked)
+                    } catch (e: SessionExpired) {
+                        // The account reports it and signs out, which empties the queue.
+                        return@launch
+                    } catch (e: IOException) {
+                        throw e
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // Refused rather than unreachable: tried a few times, then given up, so one
+                        // song never holds back the hearts behind it.
+                        val tries = (refused[song.id] ?: 0) + 1
+                        refused[song.id] = tries
+                        if (tries < MAX_TRIES) throw e
+                        Log.w(TAG, "likes: the account keeps refusing a like, dropping it", e)
+                    }
+                    refused.remove(song.id)
                     // Only if no newer tap replaced it while this one was on its way.
                     store.run { db -> db.delete("like_queue", "song_id = ? AND liked = ?", arrayOf(song.id, if (liked) "1" else "0")) }
                 }
@@ -141,7 +163,6 @@ class AccountLikes(
         const val PAUSE_MS = 2_000L
         const val FIRST_RETRY_MS = 60_000L
         const val MAX_RETRY_MS = 30 * 60_000L
-        // The queue's `liked` column comes right after the song's own columns.
-        const val SONG_COLUMN_COUNT = 7
+        const val MAX_TRIES = 3
     }
 }

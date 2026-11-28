@@ -120,6 +120,12 @@ class Playback(
         private set
 
     private val listener = object : Player.Listener {
+        // Every new start of a song counts as a play, a repeat or the same song queued twice too;
+        // a swap of the same item for its album version does not.
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) lastStarted = null
+        }
+
         override fun onEvents(player: Player, events: Player.Events) {
             if (events.contains(Player.EVENT_TIMELINE_CHANGED)) {
                 readQueue()
@@ -177,8 +183,12 @@ class Playback(
                 .onFailure { Log.w(TAG, "playback: cannot connect to service", it) }
                 .getOrNull()
             if (built == null) {
-                // Cleared so the next call tries again.
+                // Cleared so the next call tries again, and tried again soon while on screen.
                 if (pending === future) pending = null
+                scope.launch {
+                    delay(RECONNECT_MS)
+                    if (visible && controller == null) connect()
+                }
                 return@addListener
             }
             if (pending !== future) {
@@ -299,6 +309,12 @@ class Playback(
         return MediaSession.MediaItemsWithStartPosition(snapshot.songs.map(::toMediaItem), snapshot.index, snapshot.positionMs)
     }
 
+    /** The saved shuffle mode and the player's repeat mode, for the service to set as it resumes. */
+    suspend fun resumableModes(): Pair<Boolean, Int>? {
+        val snapshot = runCatching { saved.load() }.getOrNull() ?: return null
+        return snapshot.shuffle to playerRepeat(snapshot.repeat)
+    }
+
     /** Takes every copy of the song [songId] out of the queue; if it is playing, the next one plays. */
     fun drop(songId: String) {
         val c = controller ?: return
@@ -307,9 +323,13 @@ class Playback(
         }
     }
 
-    /** Takes out the songs before the one playing. */
+    /**
+     * Takes out the songs before the one playing. Not while shuffling: then the songs before it in
+     * the list are not the ones that played.
+     */
     fun removePlayed() {
         val c = controller ?: return
+        if (c.shuffleModeEnabled) return
         val playing = c.currentMediaItemIndex
         if (playing > 0) c.removeMediaItems(0, playing)
     }
@@ -552,11 +572,12 @@ class Playback(
 
     /** Saves the queue a moment after it stops changing, so a burst of edits is one write. */
     private fun saveQueue() {
-        val c = controller ?: return
-        val snapshot = QueueSnapshot(_queue.value, c.currentMediaItemIndex, c.currentPosition, c.shuffleModeEnabled, repeatOf(c.repeatMode))
         saving?.cancel()
         saving = scope.launch {
             delay(SAVE_DELAY_MS)
+            // Read when written, so a song that started during the wait is not saved as the old one.
+            val c = controller ?: return@launch
+            val snapshot = QueueSnapshot(_queue.value, c.currentMediaItemIndex, c.currentPosition, c.shuffleModeEnabled, repeatOf(c.repeatMode))
             try {
                 saved.save(snapshot)
             } catch (e: CancellationException) {
@@ -596,11 +617,7 @@ class Playback(
             val c = controller ?: return@launch
             if (c.mediaItemCount != 0) return@launch
             c.shuffleModeEnabled = snapshot.shuffle
-            c.repeatMode = when (snapshot.repeat) {
-                Repeat.Off -> Player.REPEAT_MODE_OFF
-                Repeat.All -> Player.REPEAT_MODE_ALL
-                Repeat.One -> Player.REPEAT_MODE_ONE
-            }
+            c.repeatMode = playerRepeat(snapshot.repeat)
             c.setMediaItems(snapshot.songs.map(::toMediaItem), snapshot.index, snapshot.positionMs)
         }
     }
@@ -617,6 +634,7 @@ class Playback(
         const val TAG = "Hihu"
         const val TICK_MS = 500L
         const val SAVE_DELAY_MS = 500L
+        const val RECONNECT_MS = 2_000L
         /** How long a music video waits for its album version before it plays as it is. */
         const val SWAP_PATIENCE_MS = 4_000L
     }
@@ -627,6 +645,12 @@ class Playback(
  * song's cover URI is the audio file itself, which the notification cannot decode as an image;
  * the notification uses the artwork embedded in the file instead.
  */
+private fun playerRepeat(repeat: Repeat): Int = when (repeat) {
+    Repeat.Off -> Player.REPEAT_MODE_OFF
+    Repeat.All -> Player.REPEAT_MODE_ALL
+    Repeat.One -> Player.REPEAT_MODE_ONE
+}
+
 private fun repeatOf(mode: Int): Repeat = when (mode) {
     Player.REPEAT_MODE_ALL -> Repeat.All
     Player.REPEAT_MODE_ONE -> Repeat.One

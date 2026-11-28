@@ -61,6 +61,8 @@ class Account(
     private var job: Job? = null
 
     init {
+        // A session refused in the middle of a call ends here, wherever it was noticed.
+        source.watchSession { scope.launch(Dispatchers.Main) { expire() } }
         job = scope.launch {
             val saved = withContext(Dispatchers.IO) { store.read() } ?: return@launch
             source.useSession(saved)
@@ -92,8 +94,13 @@ class Account(
         }
         job = scope.launch {
             // Not kept, the session still works until the app closes; signing in again fixes it.
-            runCatching { withContext(Dispatchers.IO) { store.write(cookies) } }
-                .onFailure { Log.w(TAG, "account: cannot save the session", it) }
+            try {
+                withContext(Dispatchers.IO) { store.write(cookies) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "account: cannot save the session", e)
+            }
             check()
         }
     }
@@ -103,9 +110,23 @@ class Account(
         job?.cancel()
         source.useSession(null)
         store.clear()
-        CookieManager.getInstance().removeAllCookies(null)
+        CookieManager.getInstance().run {
+            removeAllCookies(null)
+            flush()
+        }
         pagers.values.forEach { it.clear() }
         _status.value = AccountStatus.SignedOut
+    }
+
+    /** Ends a session the provider refused while the app ran: the user has to sign in again. */
+    private fun expire() {
+        if (_status.value !is AccountStatus.SignedIn) return
+        Log.w(TAG, "account: the session is no longer accepted")
+        job?.cancel()
+        source.useSession(null)
+        store.clear()
+        pagers.values.forEach { it.clear() }
+        _status.value = AccountStatus.Expired
     }
 
     /** Checks the session again, after it could not be reached. */

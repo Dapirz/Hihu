@@ -39,6 +39,11 @@ class Radio(
     private var job: Job? = null
     private var next: (suspend () -> Page<Song>)? = null
     private var generation = -1
+    private var artistJob: Job? = null
+
+    /** Pages in a row that added nothing, and when a failed page may be asked for again. */
+    private var emptyPages = 0
+    private var quietUntil = 0L
 
     init {
         scope.launch {
@@ -59,8 +64,9 @@ class Radio(
     /** Plays [song] now, followed by its radio when its provider has one. */
     fun start(song: Song) {
         job?.cancel()
-        next = null
-        playback.play(listOf(song), 0)
+        fresh()
+        // Shuffle off: the radio adds songs at the end and counts what is left in play order.
+        playback.play(listOf(song), 0, shuffle = false)
         if (!source.hasRadio(song)) return
         generation = playback.generation
         _seed.value = song.title
@@ -80,7 +86,7 @@ class Radio(
         val songs = all.filter { it == tapped || it.id !in hidden.value }
         if (songs.isEmpty()) return
         job?.cancel()
-        next = null
+        fresh()
         when (shuffle) {
             true -> playback.play(songs.shuffled(), 0, shuffle = false)
             false -> playback.play(songs, songs.indexOf(tapped).coerceAtLeast(0), shuffle = false)
@@ -103,14 +109,16 @@ class Radio(
      * stays as it was.
      */
     fun startArtist(collection: Collection) {
-        job?.cancel()
-        next = null
-        job = scope.launch {
+        artistJob?.cancel()
+        // The radio playing now goes on untouched until the artist's first page is here.
+        artistJob = scope.launch {
             _startingArtist.value = true
             try {
                 val page = source.artistRadio(collection)
                 val songs = page.items.filter { it.id !in hidden.value }.distinctBy(Song::id)
                 if (songs.isEmpty()) return@launch
+                job?.cancel()
+                fresh()
                 playback.play(songs, 0, shuffle = false)
                 generation = playback.generation
                 next = page.next
@@ -131,7 +139,7 @@ class Radio(
     /** Turns the queue playing into the radio of [song], its last one, without replacing it. */
     private fun carryOn(song: Song) {
         if (!source.hasRadio(song) || job?.isActive == true) return
-        next = null
+        fresh()
         generation = playback.generation
         _seed.value = song.title
         job = scope.launch { load { source.radio(song) } }
@@ -139,8 +147,15 @@ class Radio(
 
     private fun more() {
         val fetch = next ?: return
-        if (job?.isActive == true) return
+        if (job?.isActive == true || System.currentTimeMillis() < quietUntil) return
         job = scope.launch { load(fetch) }
+    }
+
+    /** Clears what a radio before this one left behind. */
+    private fun fresh() {
+        next = null
+        emptyPages = 0
+        quietUntil = 0
     }
 
     /**
@@ -158,10 +173,15 @@ class Radio(
             val heard = current.mapTo(HashSet(), ::sameSong)
             val fresh = page.items.filter { it.id !in hidden.value && queued.add(it.id) && heard.add(sameSong(it)) }
             if (fresh.isNotEmpty()) playback.enqueue(fresh, resume = true)
+            // A few pages in a row with nothing new and the radio has run dry; it stops asking.
+            emptyPages = if (fresh.isEmpty()) emptyPages + 1 else 0
+            if (emptyPages >= EMPTY_PAGES_MAX) next = null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "radio: cannot load similar songs", e)
+            // Not asked again on the next tick of the position, only after a pause.
+            quietUntil = System.currentTimeMillis() + FAILED_PAUSE_MS
         }
     }
 
@@ -185,6 +205,8 @@ class Radio(
         const val TAG = "Hihu"
         /** Fetch more once this few songs are left after the one playing. */
         const val REFILL_AT = 3
+        const val EMPTY_PAGES_MAX = 3
+        const val FAILED_PAUSE_MS = 30_000L
         val NOT_WORD = Regex("[^\\p{L}\\p{N}]+")
         val BRACKETED = Regex("""\s*[(\[]([^)\]]*)[)\]]""")
         /** Parts of a title that do not change the song: a video's marks, and its guests, in any order. */

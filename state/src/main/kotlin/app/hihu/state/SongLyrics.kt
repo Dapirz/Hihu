@@ -116,12 +116,16 @@ class SongLyrics(
         }
     }
 
-    private suspend fun offsetOf(songId: String): Long = runCatching {
+    private suspend fun offsetOf(songId: String): Long = try {
         store.run { db ->
             db.rawQuery("SELECT offset_ms FROM lyrics_offsets WHERE song_id = ?", arrayOf(songId))
                 .all { it.getLong(0) }.firstOrNull() ?: 0
         }
-    }.getOrDefault(0)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        0
+    }
 
     private fun load(song: Song?) {
         job?.cancel()

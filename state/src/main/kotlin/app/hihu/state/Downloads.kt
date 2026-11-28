@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Where one song's download is. [percent] runs from 0 to 100 while downloading. */
@@ -21,6 +22,9 @@ enum class DownloadStatus { Queued, Downloading, Done, Failed }
 interface DownloadEngine {
     /** Every download the engine knows, by song id. */
     val progress: StateFlow<Map<String, DownloadProgress>>
+
+    /** True once [progress] holds what the engine had stored, not just an empty start. */
+    val loaded: StateFlow<Boolean>
 
     /** Whether [song] can be downloaded at all; files already on the phone cannot. */
     fun supports(song: Song): Boolean
@@ -50,8 +54,18 @@ class Downloads(private val engine: DownloadEngine, private val store: Store, pr
     val bytes: StateFlow<Long> = _bytes.asStateFlow()
 
     init {
-        scope.launch { reload() }
+        scope.launch {
+            reload()
+            // A song saved here that the engine never heard of, its start lost to a closed app,
+            // is asked for again.
+            engine.loaded.first { it }
+            val known = engine.progress.value
+            _songs.value.filter { it.id !in known && engine.supports(it) }.forEach(engine::start)
+        }
     }
+
+    /** Whether [song] is downloaded in full, so it plays with no network. */
+    fun isDone(song: Song): Boolean = engine.progress.value[song.id]?.status == DownloadStatus.Done
 
     fun supports(song: Song) = engine.supports(song)
 

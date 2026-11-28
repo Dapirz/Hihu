@@ -20,7 +20,13 @@ class Navigator(root: Destination.Tab) {
 
     /** Opens [destination] on top, unless it is already showing. */
     fun push(destination: Destination) {
-        _stack.update { if (it.last() == destination) it else it + destination }
+        // Going back to a page already open drops what was opened over it, so A → B → A is one A.
+        _stack.update { stack ->
+            when (val at = stack.indexOf(destination)) {
+                -1 -> stack + destination
+                else -> stack.take(at + 1)
+            }
+        }
     }
 
     /** Switches to [tab], dropping whatever was open on top of the current one. */

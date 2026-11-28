@@ -43,12 +43,27 @@ class BugReport(private val version: String, private val scope: CoroutineScope) 
         val process = Runtime.getRuntime().exec(command)
         val lines = process.inputStream.bufferedReader().use { it.readLines() }
         process.waitFor()
-        return lines.takeLast(MAX_LINES).joinToString("\n") { URL.replace(it, "[url]") }
+        return lines.takeLast(MAX_LINES).joinToString("\n", transform = ::scrub)
     }
+
+    /**
+     * [line] without what could point at the user: addresses, hosts, files on the phone, and the
+     * values of cookies or tokens, which another library could have written.
+     */
+    private fun scrub(line: String): String = line
+        .replace(URL, "[url]")
+        .replace(SECRET) { "${it.groupValues[1]}=[hidden]" }
+        .replace(HOST, "[host]")
+        .replace(IPV4, "[ip]")
+        .replace(IPV6, "[ip]")
 
     private companion object {
         const val TAG = "Hihu"
         const val MAX_LINES = 500
-        val URL = Regex("""https?://\S+""")
+        val URL = Regex("""(?:https?|file|content)://\S+""")
+        val SECRET = Regex("""(?i)\b(cookie|authorization|sapisid|__Secure-[\w-]+|[a-z]*sid|token|key)\s*[=:]\s*\S+""")
+        val HOST = Regex("""\b(?:[a-z0-9-]+\.)+(?:com|net|org|io|dev|be)\b""", RegexOption.IGNORE_CASE)
+        val IPV4 = Regex("""\b\d{1,3}(?:\.\d{1,3}){3}\b""")
+        val IPV6 = Regex("""\b[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4}){3,7}\b""")
     }
 }

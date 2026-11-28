@@ -31,8 +31,23 @@ class History(private val store: Store, private val scope: CoroutineScope) {
                     put("song_id", song.id)
                     put("played_at", System.currentTimeMillis())
                 })
+                // Kept by age, so the rows that count the last weeks have them all; and at least the
+                // last plays, however old.
                 db.execSQL(
-                    "DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY played_at DESC LIMIT $KEEP_ROWS)",
+                    "DELETE FROM history WHERE played_at < ? AND id NOT IN (SELECT id FROM history ORDER BY played_at DESC LIMIT $KEEP_ROWS)",
+                    arrayOf(System.currentTimeMillis() - KEEP_DAYS * DAY_MS),
+                )
+                // A song nothing points at any more, like one a radio played once, goes too.
+                db.execSQL(
+                    """
+                    DELETE FROM songs WHERE id NOT IN (SELECT song_id FROM history)
+                      AND id NOT IN (SELECT song_id FROM favorites)
+                      AND id NOT IN (SELECT song_id FROM playlist_songs)
+                      AND id NOT IN (SELECT song_id FROM queue)
+                      AND id NOT IN (SELECT song_id FROM downloads)
+                      AND id NOT IN (SELECT song_id FROM like_queue)
+                      AND id NOT IN (SELECT song_id FROM hidden_songs)
+                    """,
                 )
             }
             reload()
@@ -91,6 +106,8 @@ class History(private val store: Store, private val scope: CoroutineScope) {
     private companion object {
         const val SHOWN = 100
         const val KEEP_ROWS = 1000
+        /** As far back as any row of Home looks: the releases of the artists of the last 60 days. */
+        const val KEEP_DAYS = 60L
         const val MOST_PLAYED = 12
         const val MOST_PLAYED_DAYS = 30L
         const val DAY_MS = 24 * 60 * 60 * 1000L
