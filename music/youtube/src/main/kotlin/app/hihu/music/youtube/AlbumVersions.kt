@@ -1,5 +1,6 @@
 package app.hihu.music.youtube
 
+import app.hihu.music.ForeignTrack
 import app.hihu.music.Song
 import java.util.Locale
 
@@ -10,6 +11,12 @@ import java.util.Locale
 internal object AlbumVersions {
     /** How many of a search's first hits are weighed; further down, a hit is more likely another recording. */
     const val WEIGHED = 5
+
+    /** A bracketed part of a title, its words inside. */
+    private val BRACKET = Regex("""[(\[]([^)\]]*)[)\]]""")
+
+    /** How far apart two services' lengths of one recording may be, at the least. */
+    private const val TRACK_GAP_MS = 10_000L
 
     /** How much longer than its song a music video may run, at the least: an intro or a skit. */
     private const val LONGER_MS = 30_000L
@@ -51,6 +58,65 @@ internal object AlbumVersions {
         return readings(video).any { reading ->
             val wanted = plain(reading.title)
             wanted.isNotEmpty() && wanted == title && reading.artists.isNotEmpty() && reading.artists.all { it in credited }
+        }
+    }
+
+    /** What to search for to find [track] from another service: its plain title and its first artist. */
+    fun trackQuery(track: ForeignTrack): String? {
+        val artist = track.artists.firstOrNull()?.takeIf { it.isNotBlank() } ?: return null
+        return "${withoutNote(track.title)} $artist"
+    }
+
+    /**
+     * Whether [song] is [track] from another service: the same plain title and its first artist
+     * credited, sure when the lengths are within [TRACK_GAP_MS] or a twentieth, unsure when not.
+     * Null when it is another song.
+     */
+    fun matchTrack(track: ForeignTrack, song: Song): Boolean? {
+        val wanted = plain(asBracket(track.title))
+        if (wanted.isEmpty() || plain(asBracket(song.title)) != wanted) return null
+        val artist = track.artists.firstOrNull()?.let(::words)?.takeIf { it.isNotEmpty() } ?: return null
+        // A guest may be named in the title, "Song (feat. A)", rather than in the credit.
+        if (artist !in artists(song) + guests(song.title)) return null
+        if (track.durationMs <= 0 || song.durationMs <= 0) return false
+        return kotlin.math.abs(track.durationMs - song.durationMs) <= maxOf(TRACK_GAP_MS, track.durationMs / 20)
+    }
+
+    /**
+     * [title] with a note after a dash written the way catalogues bracket it: "Song - Radio Edit"
+     * reads as "Song (Radio Edit)", so the two spellings compare as one. A "- From …" note, which
+     * only names a film or an album, is left out.
+     */
+    private fun asBracket(title: String): String {
+        val dash = title.lastIndexOf(" - ")
+        if (dash < 0) return title
+        val note = title.substring(dash + 3).trim()
+        return when (words(note).startsWith("from ")) {
+            true -> title.substring(0, dash)
+            false -> "${title.substring(0, dash)} ($note)"
+        }
+    }
+
+    /** The guests a title names in a bracket, like "(feat. A & B)", as compared names. */
+    private fun guests(title: String): List<String> = BRACKET.findAll(title)
+        .map { it.groupValues[1].trim() }
+        .filter { words(it).substringBefore(' ') in setOf("feat", "ft", "featuring", "with") }
+        .flatMap { names(it.substringAfter(' ')) }
+        .toList()
+
+    /**
+     * [title] without a note after a dash that leaves the recording as it is, as streaming
+     * services write it: "- Remastered 2011", "- From …". A note such as
+     * "- Live" or "- Acoustic" names another recording and stays.
+     */
+    private fun withoutNote(title: String): String {
+        val dash = title.lastIndexOf(" - ")
+        if (dash < 0) return title
+        val note = words(title.substring(dash + 3))
+        val harmless = note.startsWith("from ") || "remaster" in note || note == "single version" || note == "radio edit"
+        return when (harmless) {
+            true -> title.substring(0, dash)
+            false -> title
         }
     }
 
@@ -130,10 +196,11 @@ internal object AlbumVersions {
         return words(kept.toString())
     }
 
-    /** Whether a bracketed part leaves the recording as it is: a guest credit or a remaster. */
+    /** Whether a bracketed part leaves the recording as it is: a guest credit, a remaster, or "Single Version". */
     private fun harmless(part: String): Boolean {
         val plainPart = words(part)
-        return plainPart.substringBefore(' ') in setOf("feat", "ft", "featuring", "with") || "remaster" in plainPart
+        return plainPart.substringBefore(' ') in setOf("feat", "ft", "featuring", "with") || "remaster" in plainPart ||
+            plainPart == "single version" || plainPart == "album version"
     }
 
     /** The artists credited on [song], as compared names. */

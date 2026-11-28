@@ -5,6 +5,8 @@ import app.hihu.music.AudioQuality
 import app.hihu.music.Chart
 import app.hihu.music.Collection
 import app.hihu.music.ContentUnavailable
+import app.hihu.music.ForeignTrack
+import app.hihu.music.SongMatch
 import app.hihu.music.LinkedPlaylist
 import app.hihu.music.Lyrics
 import app.hihu.music.LyricsProvider
@@ -162,6 +164,23 @@ class YouTubeMusic(
     override suspend fun lyrics(song: Song): Lyrics? {
         if (!song.uri.startsWith("$SCHEME://")) return null
         return io { feed.lyrics(song.uri.removePrefix("$SCHEME://")) }
+    }
+
+    override suspend fun matchSong(track: ForeignTrack): SongMatch? {
+        val query = AlbumVersions.trackQuery(track) ?: return null
+        val hits = search(query, SearchKind.Songs).items.asSequence()
+            .mapNotNull { (it as? SearchResult.Track)?.song }
+            .take(AlbumVersions.WEIGHED)
+            .toList()
+        var unsure: Song? = null
+        for (song in hits) {
+            when (AlbumVersions.matchTrack(track, song)) {
+                true -> return SongMatch(song, sure = true)
+                false -> unsure = unsure ?: song
+                null -> Unit
+            }
+        }
+        return unsure?.let { SongMatch(it, sure = false) }
     }
 
     override suspend fun search(query: String, kind: SearchKind): Page<SearchResult> = io {
