@@ -9,6 +9,12 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.foundation.background
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.alpha
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Box
@@ -104,9 +110,19 @@ fun SongList(
     /** Shows each row's position, 1 first, before its cover, like a chart. */
     numbered: Boolean = false,
     selectionBar: (@Composable (chosen: List<Song>, done: () -> Unit) -> Unit)? = null,
+    dividers: Boolean = true,
+    /** Rows drawn faded, like the songs of the queue that already played. */
+    dimmed: (Int, Song) -> Boolean = { _, _ -> false },
+    /** The row the list opens at, rather than the first. */
+    initialIndex: Int? = null,
+    /** Given, a row can be swiped away sideways when [canRemove] allows it; this gets its index. */
+    onRemove: ((Int) -> Unit)? = null,
+    canRemove: (Int, Song) -> Boolean = { _, _ -> true },
 ) {
     val m = HihuTheme.metrics
-    val list = rememberLazyListState()
+    val list = rememberLazyListState(
+        initialFirstVisibleItemIndex = (initialIndex ?: 0).coerceAtLeast(0) + if (header != null) 1 else 0,
+    )
     var chosen by rememberSaveable { mutableStateOf(listOf<String>()) }
     val choosing = selectionBar != null && chosen.isNotEmpty()
     val toggle = { song: Song ->
@@ -148,7 +164,7 @@ fun SongList(
                         .graphicsLayer { translationY = if (dragged) reorder.offset else 0f }
                         .background(if (dragged) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent),
                 ) {
-                    SongRow(
+                    val songRow: @Composable () -> Unit = { SongRow(
                         song,
                         playing = isPlaying(index, song),
                         onClick = {
@@ -162,12 +178,54 @@ fun SongList(
                         rank = if (numbered) index + 1 else null,
                         selected = choosing && song.id in chosen,
                         onLongClick = selectionBar?.let { { toggle(song) } },
-                    )
-                    if (index < rows.lastIndex && !dragged) RowDivider(m.gapLg + m.rowArtwork + m.gapLg)
+                    ) }
+                    Box(Modifier.alpha(if (dimmed(index, song) && !dragged) DIMMED_ALPHA else 1f)) {
+                        // The row stays in the same wrapper while it is dragged: swapping it out would
+                        // drop the drag handle mid-drag. Only the swipe is switched off.
+                        when (onRemove != null) {
+                            true -> SwipeToRemove(
+                                enabled = !dragged && canRemove(index, song),
+                                onRemove = { onRemove(index) },
+                                content = songRow,
+                            )
+                            false -> songRow()
+                        }
+                    }
+                    if (dividers && index < rows.lastIndex && !dragged) RowDivider(m.gapLg + m.rowArtwork + m.gapLg)
                 }
             }
             moreFooter(more)
         }
+    }
+}
+
+/** [content] on a surface that a sideways swipe takes away, over a red strip with a bin. */
+@Composable
+private fun SwipeToRemove(enabled: Boolean, onRemove: () -> Unit, content: @Composable () -> Unit) {
+    val m = HihuTheme.metrics
+    val state = rememberSwipeToDismissBoxState()
+    val label = stringResource(R.string.remove_from_queue)
+    SwipeToDismissBox(
+        state = state,
+        gesturesEnabled = enabled,
+        modifier = Modifier.semantics {
+            if (enabled) customActions = listOf(CustomAccessibilityAction(label) { onRemove(); true })
+        },
+        backgroundContent = {
+            val alignment = when (state.dismissDirection) {
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                else -> Alignment.CenterEnd
+            }
+            Box(
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer).padding(horizontal = m.gapXl),
+                contentAlignment = alignment,
+            ) {
+                Icon(painterResource(Icons.delete), null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(m.iconMd))
+            }
+        },
+        onDismiss = { onRemove() },
+    ) {
+        Box(Modifier.background(MaterialTheme.colorScheme.surface)) { content() }
     }
 }
 
@@ -377,5 +435,6 @@ private fun compact(count: Long): String =
 
 /** How many rows before the end the next page is asked for. */
 private const val LOAD_AHEAD = 6
+private const val DIMMED_ALPHA = 0.5f
 private const val FOOTER_KEY = "list-more"
 private const val HEADER_KEY = "list-header"

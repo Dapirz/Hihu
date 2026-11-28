@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import app.hihu.views.shared.SkeletonShelves
+import app.hihu.state.RecentSources
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,7 +43,9 @@ import app.hihu.views.shared.moreFooter
 @Composable
 fun HomeScreen(
     home: Home,
+    recentSources: RecentSources,
     contentPadding: PaddingValues,
+    onOpenPlaylist: (Long) -> Unit,
     onSongs: (Song, List<Song>) -> Unit,
     onOpen: (Collection) -> Unit,
     onSettings: () -> Unit,
@@ -50,6 +54,24 @@ fun HomeScreen(
     val personal by home.personal.collectAsStateWithLifecycle()
     val releases by home.releases.collectAsStateWithLifecycle()
     val shelves by home.shelves.collectAsStateWithLifecycle()
+    val recent by recentSources.recent.collectAsStateWithLifecycle()
+    // A card of a local playlist opens Hihu's own playlist screen; the rest open as usual.
+    val openRecent = { collection: Collection ->
+        when (val local = RecentSources.localPlaylist(collection)) {
+            null -> onOpen(collection)
+            else -> onOpenPlaylist(local)
+        }
+    }
+    val recentShelf: @Composable () -> Unit = {
+        ShelfView(
+            title = stringResource(R.string.home_recent_sources),
+            items = recent.map { SearchResult.Group(it.collection) },
+            onSong = onSongs,
+            onOpen = openRecent,
+        )
+    }
+    // "Played lately" follows "Keep listening", or leads when there is no such row.
+    val recentAfter = personal.indexOfFirst { it is PersonalRow.KeepListening }
     val list = rememberLazyListState()
     val more = shelves.more(home::loadMore)
 
@@ -59,7 +81,8 @@ fun HomeScreen(
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenTitle(stringResource(R.string.brand), onSettings = onSettings, modifier = Modifier.padding(vertical = m.titleGap))
         LazyColumn(state = list, contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
-            items(personal, key = { it::class.simpleName.orEmpty() }) { row ->
+            if (recent.isNotEmpty() && recentAfter < 0) item(key = "recent-sources") { recentShelf() }
+            itemsIndexed(personal, key = { _, row -> row::class.simpleName.orEmpty() }) { index, row ->
                 val title = when (row) {
                     is PersonalRow.KeepListening -> stringResource(R.string.home_keep_listening)
                     is PersonalRow.MostPlayed -> stringResource(R.string.home_most_played)
@@ -73,6 +96,7 @@ fun HomeScreen(
                     onOpen = onOpen,
                     menu = { song, _, dismiss -> CommonSongItems(song, dismiss) },
                 )
+                if (index == recentAfter && recent.isNotEmpty()) recentShelf()
             }
             if (releases.isNotEmpty()) {
                 item(key = "releases") {
@@ -95,7 +119,7 @@ fun HomeScreen(
             }
             when {
                 shelves.loading -> item(key = "loading") {
-                    Box(Modifier.fillMaxWidth().padding(m.gapXl), Alignment.Center) { CircularProgressIndicator() }
+                    SkeletonShelves()
                 }
                 shelves.failed -> item(key = "failed") {
                     Column(Modifier.fillMaxWidth().padding(m.gapXl), horizontalAlignment = Alignment.CenterHorizontally) {

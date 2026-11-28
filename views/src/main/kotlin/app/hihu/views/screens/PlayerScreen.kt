@@ -47,7 +47,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import app.hihu.state.NowPlaying
 import app.hihu.state.Playback
@@ -68,6 +69,7 @@ import app.hihu.views.chrome.LocalSongActions
 import app.hihu.views.chrome.MenuItem
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hihu.views.shared.Artwork
+import app.hihu.views.shared.nowPlayingCover
 import app.hihu.views.shared.formatDuration
 import app.hihu.views.shared.rememberCoverColors
 
@@ -89,7 +91,7 @@ fun PlayerScreen(
     var showLyrics by rememberSaveable { mutableStateOf(false) }
     val colors = rememberCoverColors(now.artworkUri)
     DarkSystemBars()
-    val background = Brush.verticalGradient(listOf(colors.base, colors.base, colors.tint))
+    val background = Brush.verticalGradient(listOf(colors.base, colors.tint))
     val close by rememberUpdatedState(onClose)
     // How far the view is dragged down; it follows the finger at half the distance.
     var pulled by remember { mutableFloatStateOf(0f) }
@@ -115,27 +117,16 @@ fun PlayerScreen(
                 .padding(horizontal = m.gapXl),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onClose) {
                     Icon(painterResource(Icons.collapse), stringResource(R.string.close_player), Modifier.size(m.iconLg))
                 }
                 Box(Modifier.weight(1f))
                 VersionButton(now, playback)
-                FavoriteButton(now)
-                val lyricsState = stringResource(if (showLyrics) R.string.state_on else R.string.state_off)
-                IconButton(
-                    onClick = { showLyrics = !showLyrics },
-                    modifier = Modifier.semantics { stateDescription = lyricsState },
-                ) {
-                    Icon(
-                        painterResource(Icons.lyrics),
-                        stringResource(R.string.lyrics),
-                        tint = if (showLyrics) colors.content else colors.contentMuted,
-                        modifier = Modifier.size(m.iconMd),
-                    )
-                }
-                IconButton(onClick = onQueue) {
-                    Icon(painterResource(Icons.queue), stringResource(R.string.queue), Modifier.size(m.iconMd))
+                // A short window has no room for a row under the controls; lyrics and queue stay up here.
+                if (m.compact) {
+                    LyricsButton(showLyrics, colors) { showLyrics = !showLyrics }
+                    QueueButton(onQueue)
                 }
                 SongMenu(now)
             }
@@ -147,26 +138,40 @@ fun PlayerScreen(
                             true -> LyricsPane(lyrics, preferences, now, colors, onSeek = playback::seekTo)
                             false -> {
                                 val side = minOf(maxWidth, maxHeight, m.playerArtworkMax)
-                                SwipeToSkip(now, playback) { Artwork(now.artworkUri, side, radius = m.radiusLg) }
+                                SwipeToSkip(now, playback) { Artwork(now.artworkUri, side, Modifier.nowPlayingCover(), radius = m.radiusLg) }
                             }
                         }
                     }
                 }
                 val controls: @Composable () -> Unit = {
-                    Text(
-                        now.title,
-                        style = when (m.compact) {
-                            true -> MaterialTheme.typography.titleMedium
-                            false -> MaterialTheme.typography.headlineSmall
-                        },
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = if (m.compact) m.gapSm else m.gapXl),
-                    )
-                    ArtistName(now, colors)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().padding(top = if (m.compact) m.gapSm else m.gapXl),
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                now.title,
+                                style = when (m.compact) {
+                                    true -> MaterialTheme.typography.titleMedium
+                                    false -> MaterialTheme.typography.headlineSmall
+                                },
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            ArtistName(now, colors)
+                        }
+                        FavoriteButton(now)
+                    }
                     SeekBar(now, colors, onSeek = playback::seekTo)
                     Transport(now, playback, colors)
+                    if (!m.compact) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = m.gapLg), verticalAlignment = Alignment.CenterVertically) {
+                            LyricsButton(showLyrics, colors) { showLyrics = !showLyrics }
+                            Box(Modifier.weight(1f))
+                            QueueButton(onQueue)
+                        }
+                    }
                 }
                 when (maxWidth > maxHeight && maxWidth >= m.twoColumnMin) {
                     true -> Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
@@ -196,6 +201,8 @@ private fun SeekBar(now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit
     val position = dragging ?: now.positionMs.toFloat()
     val duration = now.durationMs.toFloat().coerceAtLeast(1f)
     val label = stringResource(R.string.seek)
+    // The track thickens while the thumb is held, so the finger sees what it moves.
+    val track by animateDpAsState(if (dragging != null) m.seekTrackActive else m.seekTrack, label = "seek track")
     val sliderColors = SliderDefaults.colors(
         thumbColor = colors.content,
         activeTrackColor = colors.content,
@@ -223,7 +230,7 @@ private fun SeekBar(now: NowPlaying, colors: CoverColors, onSeek: (Long) -> Unit
                     drawStopIndicator = null,
                     thumbTrackGapSize = m.none,
                     trackInsideCornerSize = m.none,
-                    modifier = Modifier.height(m.seekTrack),
+                    modifier = Modifier.height(track),
                 )
             },
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
@@ -248,7 +255,7 @@ private fun Transport(now: NowPlaying, playback: Playback, colors: CoverColors) 
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier.fillMaxWidth().padding(
             top = if (m.compact) m.none else m.gapLg,
-            bottom = if (m.compact) m.gapSm else m.gapXxl,
+            bottom = if (m.compact) m.gapSm else m.gapMd,
         ),
     ) {
         IconButton(
@@ -336,7 +343,29 @@ private fun SongMenu(now: NowPlaying) {
     }
 }
 
-/** A heart that adds the playing song to the favourites, filled when it is one already. */
+/** Shows or hides the lyrics in place of the cover; lit while they show. */
+@Composable
+private fun LyricsButton(showing: Boolean, colors: CoverColors, onToggle: () -> Unit) {
+    val m = HihuTheme.metrics
+    val state = stringResource(if (showing) R.string.state_on else R.string.state_off)
+    IconButton(onClick = onToggle, modifier = Modifier.semantics { stateDescription = state }) {
+        Icon(
+            painterResource(Icons.lyrics),
+            stringResource(R.string.lyrics),
+            tint = if (showing) colors.content else colors.contentMuted,
+            modifier = Modifier.size(m.iconMd),
+        )
+    }
+}
+
+@Composable
+private fun QueueButton(onQueue: () -> Unit) {
+    val m = HihuTheme.metrics
+    IconButton(onClick = onQueue) {
+        Icon(painterResource(Icons.queue), stringResource(R.string.queue), Modifier.size(m.iconMd))
+    }
+}
+
 /**
  * The artists of what plays; a tap opens the artist's page, or with several artists, a menu of
  * them to pick from.
@@ -395,6 +424,7 @@ private fun VersionButton(now: NowPlaying, playback: Playback) {
     }
 }
 
+/** A heart that adds the playing song to the favourites, filled when it is one already. */
 @Composable
 private fun FavoriteButton(now: NowPlaying) {
     val m = HihuTheme.metrics

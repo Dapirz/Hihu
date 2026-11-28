@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -51,6 +50,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hihu.views.shared.SkeletonRows
 import app.hihu.music.Collection
 import app.hihu.music.Song
 import app.hihu.state.Account
@@ -349,7 +349,7 @@ private fun DeviceSongs(library: Library, query: String, playback: Playback, now
                 false -> request.launch(permission)
             }
         }
-        state.loading && state.songs.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+        state.loading && state.songs.isEmpty() -> SkeletonRows()
         state.failed -> Message(stringResource(R.string.library_failed), stringResource(R.string.retry), library::refresh)
         state.loaded && state.songs.isEmpty() ->
             Message(stringResource(R.string.library_empty), stringResource(R.string.retry), library::refresh)

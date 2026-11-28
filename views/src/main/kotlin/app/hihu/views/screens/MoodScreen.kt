@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hihu.views.shared.SkeletonShelves
 import app.hihu.music.Collection
 import app.hihu.music.Song
 import app.hihu.state.OpenMood
@@ -58,7 +58,7 @@ fun MoodScreen(
             )
         }
         when {
-            state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+            state.loading -> SkeletonShelves(count = 3)
             state.failed -> Message(stringResource(R.string.collection_failed), stringResource(R.string.retry), open.retry)
             else -> LazyColumn(contentPadding = PaddingValues(top = m.gapSm, bottom = contentPadding.calculateBottomPadding())) {
                 items(state.shelves, key = { it.title }) { shelf ->

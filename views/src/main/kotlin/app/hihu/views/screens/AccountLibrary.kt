@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hihu.views.shared.SkeletonRows
 import app.hihu.music.Collection
 import app.hihu.state.Account
 import app.hihu.state.AccountStatus
@@ -81,7 +82,7 @@ private fun SavedCollections(account: Account, query: String, padding: PaddingVa
             }
         }
         when {
-            paged.loading || !paged.loaded -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+            paged.loading || !paged.loaded -> SkeletonRows()
             paged.failed -> Message(stringResource(R.string.account_library_failed), stringResource(R.string.retry)) { account.retry(kind) }
             paged.items.isEmpty() -> Message(stringResource(R.string.account_library_empty))
             // Filtered, the rest of the pages still load, so a match further down is found too.

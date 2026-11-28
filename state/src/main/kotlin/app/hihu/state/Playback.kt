@@ -283,6 +283,12 @@ class Playback(
         if (index in 0 until c.mediaItemCount) c.removeMediaItem(index)
     }
 
+    /** Puts [song] back at [index] in the queue, or at its end when the queue got shorter; undoes [removeAt]. */
+    fun insertAt(index: Int, song: Song) {
+        val c = controller ?: return
+        c.addMediaItem(index.coerceIn(0, c.mediaItemCount), toMediaItem(song))
+    }
+
     /**
      * The saved queue as the service needs it to start again after Hihu was closed, from a
      * headset's play button or the system's resume card; null when nothing was saved.

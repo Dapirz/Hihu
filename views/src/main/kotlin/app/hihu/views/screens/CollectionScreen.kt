@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hihu.views.shared.SkeletonRows
 import app.hihu.music.CollectionKind
 import app.hihu.music.Song
 import app.hihu.state.NowPlaying
@@ -62,6 +63,8 @@ fun CollectionScreen(
     now: NowPlaying,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
+    /** Called when songs of this collection start playing, for Home's "Played lately". */
+    onPlayed: () -> Unit = {},
 ) {
     val m = HihuTheme.metrics
     val songs by open.songs.collectAsStateWithLifecycle()
@@ -73,6 +76,7 @@ fun CollectionScreen(
     }
     // A null start is Play all, which also turns shuffle off.
     val play = { list: List<Song>, start: Int?, shuffle: Boolean ->
+        onPlayed()
         when {
             mix -> radio.playMix(open.collection, list, start ?: 0, shuffle)
             shuffle || start == null -> playback.playAll(list, shuffle)
@@ -89,7 +93,7 @@ fun CollectionScreen(
         when {
             songs.loading -> Column {
                 Header(open, songs = emptyList(), total = null, play = play, onRadio = artistRadio, radioLoading = radioLoading)
-                Box(Modifier.fillMaxWidth().padding(m.gapXl), Alignment.Center) { CircularProgressIndicator() }
+                SkeletonRows()
             }
             songs.failed -> Message(stringResource(R.string.collection_failed), stringResource(R.string.retry), open::retry)
             songs.items.isEmpty() -> Message(stringResource(R.string.collection_empty))

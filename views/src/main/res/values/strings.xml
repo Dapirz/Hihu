@@ -40,6 +40,7 @@
     <string name="seek">Playback position</string>
     <string name="tab_home">Home</string>
     <string name="home_keep_listening">Keep listening</string>
+    <string name="home_recent_sources">Played lately</string>
     <string name="home_forgotten">Forgotten favorites</string>
     <string name="home_similar">Similar to %1$s</string>
     <string name="home_failed">Couldn\'t load YouTube Music\'s home. Check your connection.</string>
@@ -141,6 +142,9 @@
     <string name="add_to_playlist">Add to playlist</string>
     <string name="remove_from_playlist">Remove from playlist</string>
     <string name="remove_from_queue">Remove from queue</string>
+    <string name="queue_removed">Removed from the queue</string>
+    <string name="undo">Undo</string>
+    <string name="loading">Loading</string>
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="move_up">Move up</string>
     <string name="move_down">Move down</string>

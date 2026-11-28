@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -33,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hihu.views.shared.SkeletonRows
 import app.hihu.music.Song
 import app.hihu.state.NowPlaying
 import app.hihu.state.Playback
@@ -64,6 +64,8 @@ fun PlaylistScreen(
     now: NowPlaying,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
+    /** Called when songs of this playlist start playing, for Home's "Played lately". */
+    onPlayed: () -> Unit = {},
 ) {
     val m = HihuTheme.metrics
     val all by playlists.all.collectAsStateWithLifecycle()
@@ -105,17 +107,20 @@ fun PlaylistScreen(
         }
         val list = songs
         when {
-            list == null || summary == null -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+            list == null || summary == null -> SkeletonRows()
             list.isEmpty() -> Column {
-                Header(summary.name, summary.artworkUri, list, playback)
+                Header(summary.name, summary.artworkUri, list, playback, onPlayed)
                 Message(stringResource(R.string.playlist_empty))
             }
             else -> SongList(
                 songs = list,
                 playingId = now.songId,
                 padding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
-                onPlay = { index -> playback.play(list, index) },
-                header = { Header(summary.name, summary.artworkUri, list, playback) },
+                onPlay = { index ->
+                    onPlayed()
+                    playback.play(list, index)
+                },
+                header = { Header(summary.name, summary.artworkUri, list, playback, onPlayed) },
                 onMove = { from, to -> playlists.move(id, from, to) },
                 selectionBar = { chosen, done -> SelectionBar(chosen, done) },
                 menu = { song, index, dismiss ->
@@ -164,7 +169,7 @@ fun PlaylistScreen(
 }
 
 @Composable
-private fun Header(name: String, artworkUri: String?, songs: List<Song>, playback: Playback) {
+private fun Header(name: String, artworkUri: String?, songs: List<Song>, playback: Playback, onPlayed: () -> Unit) {
     val m = HihuTheme.metrics
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -187,11 +192,11 @@ private fun Header(name: String, artworkUri: String?, songs: List<Song>, playbac
             modifier = Modifier.padding(top = m.gapXs),
         )
         HeaderButtons(Modifier.padding(top = m.gapLg)) {
-            Button(onClick = { playback.playAll(songs, shuffle = false) }, enabled = songs.isNotEmpty()) {
+            Button(onClick = { onPlayed(); playback.playAll(songs, shuffle = false) }, enabled = songs.isNotEmpty()) {
                 Icon(painterResource(Icons.play), contentDescription = null, Modifier.size(m.iconSm))
                 ButtonLabel(stringResource(R.string.play_all))
             }
-            FilledTonalButton(onClick = { playback.playAll(songs, shuffle = true) }, enabled = songs.isNotEmpty()) {
+            FilledTonalButton(onClick = { onPlayed(); playback.playAll(songs, shuffle = true) }, enabled = songs.isNotEmpty()) {
                 Icon(painterResource(Icons.shuffle), contentDescription = null, Modifier.size(m.iconSm))
                 ButtonLabel(stringResource(R.string.shuffle))
             }

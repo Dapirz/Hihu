@@ -39,6 +39,7 @@ import app.hihu.ui.HihuTheme
 import app.hihu.ui.Icons
 import app.hihu.views.R
 import app.hihu.views.shared.Artwork
+import app.hihu.views.shared.nowPlayingCover
 import app.hihu.views.shared.rememberCoverColors
 
 /**
@@ -97,7 +98,7 @@ fun MiniPlayer(
                     .semantics { onClick(label = openLabel) { onOpen(); true } }
                     .padding(start = m.gapMd, end = m.gapXs),
             ) {
-                Artwork(now.artworkUri, m.miniArtwork, radius = m.miniArtwork / 2)
+                Artwork(now.artworkUri, m.miniArtwork, Modifier.nowPlayingCover(), radius = m.miniArtwork / 2)
                 Column(modifier = Modifier.weight(1f).padding(horizontal = m.gapMd)) {
                     Text(
                         now.title,

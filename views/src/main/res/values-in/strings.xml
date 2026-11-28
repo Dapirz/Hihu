@@ -37,6 +37,7 @@
     <string name="seek">Posisi lagu</string>
     <string name="tab_home">Beranda</string>
     <string name="home_keep_listening">Lanjut dengerin</string>
+    <string name="home_recent_sources">Terakhir diputar</string>
     <string name="home_forgotten">Favorit yang terlupa</string>
     <string name="home_similar">Mirip %1$s</string>
     <string name="home_failed">Gagal memuat beranda YouTube Music. Periksa koneksi.</string>
@@ -133,6 +134,9 @@
     <string name="add_to_playlist">Tambah ke playlist</string>
     <string name="remove_from_playlist">Hapus dari playlist</string>
     <string name="remove_from_queue">Hapus dari antrean</string>
+    <string name="queue_removed">Dihapus dari antrean</string>
+    <string name="undo">Urungkan</string>
+    <string name="loading">Memuat</string>
     <string name="drag_to_reorder">Seret untuk mengubah urutan</string>
     <string name="move_up">Pindah ke atas</string>
     <string name="move_down">Pindah ke bawah</string>

@@ -35,6 +35,8 @@ data class Metrics(
     val playButton: Dp = 76.dp,
     val divider: Dp = 1.dp,
     val seekTrack: Dp = 4.dp,
+    /** The seek bar's track while its thumb is held. */
+    val seekTrackActive: Dp = 8.dp,
     val seekThumb: Dp = 16.dp,
     val spinnerStroke: Dp = 2.dp,
     val miniProgress: Dp = 2.dp,

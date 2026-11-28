@@ -18,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hihu.views.shared.SkeletonRows
 import app.hihu.music.Collection
 import app.hihu.music.SearchKind
 import app.hihu.music.SearchResult
@@ -137,7 +137,7 @@ fun SearchScreen(
                     onRemove = search.history::remove,
                     onClear = search.history::clear,
                 )
-                results.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+                results.loading -> SkeletonRows()
                 results.failed -> Message(stringResource(R.string.search_failed), stringResource(R.string.retry), search::retry)
                 !results.loaded -> Message(stringResource(R.string.search_idle))
                 results.items.isEmpty() -> Message(stringResource(R.string.search_empty, query.text))

@@ -31,6 +31,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import app.hihu.views.shared.CoverTransition
+import app.hihu.views.shared.LocalCoverTransition
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,6 +102,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
 import app.hihu.state.HiddenSongs
 import app.hihu.state.BugReport
+import app.hihu.state.RecentSources
 import app.hihu.music.PlaylistLinks
 
 /** Everything the UI reads and drives, built once by the app module. */
@@ -115,6 +120,8 @@ class AppState(
     val lyrics: SongLyrics,
     val explore: Explore,
     val home: Home,
+    /** The albums and playlists played from lately, for Home. */
+    val recentSources: RecentSources,
     val moods: Moods,
     val playlistImport: PlaylistImport,
     val downloads: Downloads,
@@ -226,6 +233,7 @@ fun HihuRoot(app: AppState) {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: () -> Unit, onSaveQueue: (List<Song>) -> Unit) {
     val navigator = app.navigator
@@ -254,103 +262,125 @@ private fun Screens(app: AppState, onNewPlaylist: () -> Unit, onImportPlaylist: 
     val top = stack.last()
     val overlay = top.takeIf(::isOverlay)
     val base = stack.lastOrNull { !isOverlay(it) } ?: Destination.Home
-    AnimatedContent(
-        targetState = overlay,
-        transitionSpec = { overlayTransition(initialState, targetState) },
-        label = "overlay",
-    ) { shown ->
-        when (shown) {
-            Destination.Player -> Scaffold { _ ->
-                PlayerScreen(now, app.playback, app.lyrics, app.preferences, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
-            }
-            Destination.Queue -> Scaffold { _ ->
-                QueueScreen(app.playback, app.radio, now, onSave = onSaveQueue, onClose = { navigator.pop() })
-            }
-            Destination.Settings -> Scaffold { _ ->
-                SettingsScreen(
-                    app.preferences,
-                    app.downloads,
-                    app.hidden,
-                    app.bugReport,
-                    app.account,
-                    onSignIn = { navigator.push(Destination.SignIn) },
-                    onBack = { navigator.pop() },
-                )
-            }
-            Destination.SignIn -> Scaffold { _ ->
-                SignInScreen(app.account, onDone = { navigator.pop() }, onBack = { navigator.pop() })
-            }
-            else -> Scaffold(bottomBar = { BottomChrome(navigator.tab, now, navigator, app.playback) }) { padding ->
-                AnimatedContent(
-                    targetState = base to stack.size,
-                    transitionSpec = { screenTransition(initialState, targetState) },
-                    contentKey = { it.first },
-                    label = "screen",
-                ) { (current, _) ->
-                    when (current) {
-                        Destination.Search -> SearchScreen(
-                            search = app.search,
-                            playback = app.playback,
-                            radio = app.radio,
-                            now = now,
-                            contentPadding = padding,
-                            onOpen = openCollection,
-                            onSettings = openSettings,
-                        )
-                        Destination.Home -> HomeScreen(
-                            home = app.home,
-                            contentPadding = padding,
-                            onSongs = playFromFeed,
-                            onOpen = openCollection,
-                            onSettings = openSettings,
-                        )
-                        Destination.Explore -> ExploreScreen(
-                            explore = app.explore,
-                            playback = app.playback,
-                            now = now,
-                            contentPadding = padding,
-                            onSongs = playFromFeed,
-                            onOpen = openCollection,
-                            onMood = openMood,
-                            onSettings = openSettings,
-                        )
-                        is Destination.Mood -> when (val open = app.moods[current.ref]) {
-                            null -> LaunchedEffect(current) { navigator.pop() }
-                            else -> MoodScreen(open, padding, onSongs = playFromFeed, onOpen = openCollection, onBack = { navigator.pop() })
+    // The playing song's cover moves between the mini player and the full player as one picture.
+    SharedTransitionLayout {
+        val shared = this
+        AnimatedContent(
+            targetState = overlay,
+            transitionSpec = { overlayTransition(initialState, targetState) },
+            label = "overlay",
+        ) { shown ->
+            val cover = CoverTransition(shared, this)
+            when (shown) {
+                Destination.Player -> Scaffold { _ ->
+                    CompositionLocalProvider(LocalCoverTransition provides cover) {
+                        PlayerScreen(now, app.playback, app.lyrics, app.preferences, onClose = { navigator.pop() }, onQueue = { navigator.push(Destination.Queue) })
+                    }
+                }
+                Destination.Queue -> Scaffold { _ ->
+                    QueueScreen(app.playback, app.radio, now, onSave = onSaveQueue, onClose = { navigator.pop() })
+                }
+                Destination.Settings -> Scaffold { _ ->
+                    SettingsScreen(
+                        app.preferences,
+                        app.downloads,
+                        app.hidden,
+                        app.bugReport,
+                        app.account,
+                        onSignIn = { navigator.push(Destination.SignIn) },
+                        onBack = { navigator.pop() },
+                    )
+                }
+                Destination.SignIn -> Scaffold { _ ->
+                    SignInScreen(app.account, onDone = { navigator.pop() }, onBack = { navigator.pop() })
+                }
+                else -> Scaffold(bottomBar = {
+                    CompositionLocalProvider(LocalCoverTransition provides cover) {
+                        BottomChrome(navigator.tab, now, navigator, app.playback)
+                    }
+                }) { padding ->
+                    AnimatedContent(
+                        targetState = base to stack.size,
+                        transitionSpec = { screenTransition(initialState, targetState) },
+                        contentKey = { it.first },
+                        label = "screen",
+                    ) { (current, _) ->
+                        when (current) {
+                            Destination.Search -> SearchScreen(
+                                search = app.search,
+                                playback = app.playback,
+                                radio = app.radio,
+                                now = now,
+                                contentPadding = padding,
+                                onOpen = openCollection,
+                                onSettings = openSettings,
+                            )
+                            Destination.Home -> HomeScreen(
+                                home = app.home,
+                                recentSources = app.recentSources,
+                                contentPadding = padding,
+                                onOpenPlaylist = { navigator.push(Destination.Playlist(it)) },
+                                onSongs = playFromFeed,
+                                onOpen = openCollection,
+                                onSettings = openSettings,
+                            )
+                            Destination.Explore -> ExploreScreen(
+                                explore = app.explore,
+                                playback = app.playback,
+                                now = now,
+                                contentPadding = padding,
+                                onSongs = playFromFeed,
+                                onOpen = openCollection,
+                                onMood = openMood,
+                                onSettings = openSettings,
+                            )
+                            is Destination.Mood -> when (val open = app.moods[current.ref]) {
+                                null -> LaunchedEffect(current) { navigator.pop() }
+                                else -> MoodScreen(open, padding, onSongs = playFromFeed, onOpen = openCollection, onBack = { navigator.pop() })
+                            }
+                            Destination.Library -> LibraryScreen(
+                                library = app.library,
+                                playlists = app.playlists,
+                                favorites = app.favorites,
+                                downloads = app.downloads,
+                                history = app.history,
+                                playback = app.playback,
+                                now = now,
+                                contentPadding = padding,
+                                onSettings = openSettings,
+                                onOpenPlaylist = { navigator.push(Destination.Playlist(it)) },
+                                onNewPlaylist = onNewPlaylist,
+                                onImportPlaylist = onImportPlaylist,
+                                section = librarySection,
+                                onSection = { librarySection = it },
+                                account = app.account,
+                                onOpenCollection = openCollection,
+                                onSignIn = { navigator.push(Destination.SignIn) },
+                                preferences = app.preferences,
+                            )
+                            is Destination.Collection -> when (val open = app.collections[current.id]) {
+                                null -> LaunchedEffect(current) { navigator.pop() }
+                                else -> CollectionScreen(
+                                    open,
+                                    app.playback,
+                                    app.radio,
+                                    now,
+                                    padding,
+                                    onBack = { navigator.pop() },
+                                    onPlayed = { app.recentSources.record(open.collection) },
+                                )
+                            }
+                            is Destination.Playlist -> PlaylistScreen(
+                                id = current.id,
+                                playlists = app.playlists,
+                                playback = app.playback,
+                                now = now,
+                                contentPadding = padding,
+                                onBack = { navigator.pop() },
+                                onPlayed = { app.recentSources.recordLocal(current.id) },
+                            )
+                            else -> Unit
                         }
-                        Destination.Library -> LibraryScreen(
-                            library = app.library,
-                            playlists = app.playlists,
-                            favorites = app.favorites,
-                            downloads = app.downloads,
-                            history = app.history,
-                            playback = app.playback,
-                            now = now,
-                            contentPadding = padding,
-                            onSettings = openSettings,
-                            onOpenPlaylist = { navigator.push(Destination.Playlist(it)) },
-                            onNewPlaylist = onNewPlaylist,
-                            onImportPlaylist = onImportPlaylist,
-                            section = librarySection,
-                            onSection = { librarySection = it },
-                            account = app.account,
-                            onOpenCollection = openCollection,
-                            onSignIn = { navigator.push(Destination.SignIn) },
-                            preferences = app.preferences,
-                        )
-                        is Destination.Collection -> when (val open = app.collections[current.id]) {
-                            null -> LaunchedEffect(current) { navigator.pop() }
-                            else -> CollectionScreen(open, app.playback, app.radio, now, padding, onBack = { navigator.pop() })
-                        }
-                        is Destination.Playlist -> PlaylistScreen(
-                            id = current.id,
-                            playlists = app.playlists,
-                            playback = app.playback,
-                            now = now,
-                            contentPadding = padding,
-                            onBack = { navigator.pop() },
-                        )
-                        else -> Unit
                     }
                 }
             }

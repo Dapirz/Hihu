@@ -38,4 +38,5 @@ object Icons {
     val link = R.drawable.ic_link
     val radio = R.drawable.ic_radio
     val hide = R.drawable.ic_block
+    val delete = R.drawable.ic_delete
 }

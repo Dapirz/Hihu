@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -29,6 +28,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hihu.views.shared.SkeletonShelves
 import app.hihu.music.Collection
 import app.hihu.music.Mood
 import app.hihu.music.Song
@@ -86,7 +86,7 @@ fun ExploreScreen(
                     }
                 }
                 page.loading -> item(key = "loading") {
-                    Box(Modifier.fillMaxWidth().padding(m.gapXl), Alignment.Center) { CircularProgressIndicator() }
+                    SkeletonShelves()
                 }
                 page.failed -> item(key = "failed") { Retry(stringResource(R.string.explore_failed), explore::refresh) }
             }
